@@ -11,16 +11,30 @@ type Expr = Term String
 type Tokens = Symbol String
             | Parens (List Tokens)
 
-lexer : Parser Tokens
-lexer =
+expr : Parser Expr
+expr =
+    singleExpr
+        |> Parser.andThen
+           (\e -> Parser.loop e exprHelper)
+
+exprHelper : Expr -> Parser (Parser.Step Expr Expr)
+exprHelper soFar =
     Parser.oneOf
-        [ Parser.succeed Symbol
+        [ Parser.succeed (\next -> Parser.Loop <| Appl soFar next)
+              |= singleExpr
+        , Parser.succeed (Parser.Done soFar)
+        ]
+
+singleExpr : Parser Expr
+singleExpr =
+    Parser.oneOf
+        [ Parser.succeed Term
               |= Parser.variable
                   { start = Char.isAlpha
                   , inner = always False
                   , reserved = Set.empty
                   }
-        , Parser.succeed Symbol
+        , Parser.succeed Term
             |. Parser.symbol "["
             |= Parser.variable
                    { start = \c -> c /= ']'
@@ -28,32 +42,11 @@ lexer =
                    , reserved = Set.empty
                    }
             |. Parser.symbol "]"
-        , Parser.succeed Parens
-            |= Parser.sequence
-                  { start = "("
-                  , separator = ""
-                  , end = ")"
-                  , spaces = Parser.spaces
-                  , item = Parser.lazy <| \_ -> lexer
-                  , trailing = Parser.Optional
-                  }
+        , Parser.succeed identity
+            |. Parser.symbol "("
+            |. Parser.spaces
+            |= Parser.lazy (\_ -> expr)
+            |. Parser.symbol ")"
         ]
     |. Parser.spaces
-
-buildAst : Tokens -> Result String Expr
-buildAst tok =
-    case tok of
-        Symbol sym -> Ok <| Term sym
-        Parens [] -> Err "Empty parenthetical group"
-        Parens [nested] -> buildAst nested
-        Parens [x, y] -> Result.map2 Appl (buildAst x) (buildAst y)
-        Parens (x :: y :: zs) -> Result.map2 Appl
-                                   (buildAst x)
-                                   (buildAst <| Parens <| y :: zs)
-
-parseExpr : String -> Result String Expr
-parseExpr str =
-    (Parser.run lexer <| "(" ++ str ++ ")")
-        |> Result.mapError Parser.deadEndsToString
-        |> Result.andThen buildAst
 
