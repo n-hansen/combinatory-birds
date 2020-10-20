@@ -152,3 +152,26 @@ performSubstitutions e bindings =
 
         Appl () x y ->
             Appl () (performSubstitutions x bindings) (performSubstitutions y bindings)
+
+
+applyRulesOnce : List RewriteRule -> PlainExpr -> Maybe PlainExpr
+applyRulesOnce rules toRewrite =
+    case
+        rules
+            |> List.map ( \rule -> \_ -> tryRule rule toRewrite )
+            |> Maybe.orListLazy
+    of
+        Just rewritten -> Just rewritten
+        Nothing ->
+            case toRewrite of
+                Term () _ -> Nothing
+
+                Appl () x y ->
+                    Maybe.orListLazy
+                        [ \_ ->
+                              applyRulesOnce rules x
+                              |> Maybe.map (\rw -> Appl () rw y)
+                        , \_ ->
+                              applyRulesOnce rules y
+                              |> Maybe.map (\rw -> Appl () x rw)
+                        ]

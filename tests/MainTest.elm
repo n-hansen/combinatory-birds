@@ -84,7 +84,7 @@ exprSuite =
                 "A(BCD)(E(FG))"
                 (Just [ ( "x", "BCD" ), ( "y", "E(FG)" ) ])
             ]
-        , describe "single rule application"
+        , describe "direct rule application"
             [ assertTryRule
                 "I"
                 "Ix=x."
@@ -105,6 +105,33 @@ exprSuite =
                 "Ix=x."
                 "III"
                 Nothing
+            ]
+        , describe "recursive rule application"
+            [ assertApplyRulesOnce
+                  "immediate application"
+                  ["Ix=x."]
+                  "IA"
+                  (Just "A")
+            , assertApplyRulesOnce
+                  "multiple rules"
+                  ["Ix=x.", "Kxy=x."]
+                  "KAB"
+                  (Just "A")
+            , assertApplyRulesOnce
+                  "recursive Application"
+                  ["Ix=x."]
+                  "A(IXY)"
+                  (Just "A(XY)")
+            , assertApplyRulesOnce
+                  "multiple rules 2"
+                  ["Ix=x.", "Kxy=x."]
+                  "A(KII)"
+                  (Just "AI")
+            , assertApplyRulesOnce
+                  "failed match"
+                  ["Ix=x."]
+                  "XYZ(A(BI))"
+                  Nothing
             ]
         ]
 
@@ -150,4 +177,17 @@ assertTryRule name rule input expect =
             Maybe.andThen2 tryRule
                 (parseRewriteRule rule |> Result.toMaybe)
                 (parseExpr input |> Result.toMaybe)
+                |> Expect.equal (expect |> Maybe.andThen (parseExpr >> Result.toMaybe))
+
+
+assertApplyRulesOnce : String -> List String -> String -> Maybe String -> Test
+assertApplyRulesOnce name rules input expect =
+    test name <|
+        \_ ->
+            Maybe.andThen2 applyRulesOnce
+                ( rules
+                      |> List.map (parseRewriteRule >> Result.toMaybe)
+                      |> Maybe.combine
+                )
+                ( parseExpr input |> Result.toMaybe )
                 |> Expect.equal (expect |> Maybe.andThen (parseExpr >> Result.toMaybe))
