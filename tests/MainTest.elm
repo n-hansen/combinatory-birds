@@ -84,6 +84,28 @@ exprSuite =
                 "A(BCD)(E(FG))"
                 (Just [ ( "x", "BCD" ), ( "y", "E(FG)" ) ])
             ]
+        , describe "single rule application"
+            [ assertTryRule
+                "I"
+                "Ix=x."
+                "IA"
+                (Just "A")
+            , assertTryRule
+                "K"
+                "Kxy=x."
+                "KBA"
+                (Just "B")
+            , assertTryRule
+                "S"
+                "Sxyz=xz(yz)."
+                "SKSK"
+                (Just "KK(SK)")
+            , assertTryRule
+                "failed match"
+                "Ix=x."
+                "III"
+                Nothing
+            ]
         ]
 
 
@@ -119,3 +141,13 @@ assertMatchExpr name pattern toMatch expect =
                                 >> Maybe.map Dict.fromList
                             )
                     )
+
+
+assertTryRule : String -> String -> String -> Maybe String -> Test
+assertTryRule name rule input expect =
+    test name <|
+        \_ ->
+            Maybe.andThen2 tryRule
+                (parseRewriteRule rule |> Result.toMaybe)
+                (parseExpr input |> Result.toMaybe)
+                |> Expect.equal (expect |> Maybe.andThen (parseExpr >> Result.toMaybe))

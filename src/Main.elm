@@ -116,4 +116,39 @@ freeAllTermsButHead e =
         Appl () x y -> Appl Bound (freeAllTermsButHead x) (mapExpr (\_ -> Free) y)
 
 
+type alias RewriteRule = (MatchExpr, PlainExpr)
 
+
+rewriteRule : Parser RewriteRule
+rewriteRule =
+    Parser.succeed (\pattern rewritten -> (freeAllTermsButHead pattern, rewritten))
+        |= expr
+        |. Parser.spaces
+        |. Parser.symbol "="
+        |. Parser.spaces
+        |= expr
+        |. Parser.spaces
+        |. Parser.oneOf [Parser.symbol ".", Parser.symbol ";"]
+
+
+parseRewriteRule : String -> Result String RewriteRule
+parseRewriteRule input =
+    Parser.run rewriteRule input
+        |> Result.mapError Parser.deadEndsToString
+
+
+tryRule : RewriteRule -> PlainExpr -> Maybe PlainExpr
+tryRule (pattern, rewrite) e =
+    matchExpr pattern e
+        |> Maybe.map (performSubstitutions rewrite)
+
+
+performSubstitutions : PlainExpr -> Dict String PlainExpr -> PlainExpr
+performSubstitutions e bindings =
+    case e of
+        Term () t ->
+            Dict.get t bindings
+                |> Maybe.withDefault e
+
+        Appl () x y ->
+            Appl () (performSubstitutions x bindings) (performSubstitutions y bindings)
