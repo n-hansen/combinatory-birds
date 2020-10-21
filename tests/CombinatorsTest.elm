@@ -1,10 +1,10 @@
-module MainTest exposing (..)
+module CombinatorsTest exposing (suite)
 
+import Combinators exposing (..)
 import Dict
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import List
-import Main exposing (..)
 import Maybe
 import Maybe.Extra as Maybe
 import Result
