@@ -91,17 +91,25 @@ renderExpr expr =
             div
             [ css
                   [ padding <| em 0.1
-
                   ]
             ]
             [ text t ]
+
+        FreeVar () v ->
+            div
+            [ css
+                  [ padding <| em 0.1
+                  , fontStyle italic
+                  ]
+            ]
+            [ text v ]
 
         Appl () x y ->
             div
             [ css
                   [ displayFlex
                   , flexDirection row
-                  , alignItems center
+                  , alignItems baseline
                   , border3 (px 1) solid (rgb 0 0 0)
                   , padding <| em 0.3
                   , margin2 (px 0) (em 0.1)

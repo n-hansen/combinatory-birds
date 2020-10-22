@@ -1,13 +1,11 @@
 module Combinators exposing
   ( Expr(..)
   , PlainExpr
-  , MatchExpr
   , RewriteRule
   , parseExpr
   , parseRewriteRule
   , matchExpr
   , tryRule
-  , freeAllTermsButHead
   , applyRulesOnce
   )
 
@@ -19,11 +17,12 @@ import Maybe
 import Maybe.Extra as Maybe
 import Parser exposing ((|.), (|=), Parser)
 import Result
-import Set
+import Set exposing (Set)
 
 
 type Expr a
     = Term a String
+    | FreeVar a String
     | Appl a (Expr a) (Expr a)
 
 
@@ -31,6 +30,7 @@ mapExpr : (a -> b) -> Expr a -> Expr b
 mapExpr f e =
     case e of
         Term a t -> Term (f a) t
+        FreeVar a v -> FreeVar (f a) v
         Appl a x y -> Appl (f a) (mapExpr f x) (mapExpr f y)
 
 
@@ -59,18 +59,16 @@ singleExpr =
     Parser.oneOf
         [ Parser.succeed (Term ())
             |= Parser.variable
-                { start = Char.isAlpha
-                , inner = always False
+                { start = Char.isUpper
+                , inner = \c -> Set.member c termSyms
                 , reserved = Set.empty
                 }
-        , Parser.succeed (Term ())
-            |. Parser.symbol "["
+        , Parser.succeed (FreeVar ())
             |= Parser.variable
-                { start = \c -> c /= ']'
-                , inner = \c -> c /= ']'
+                { start = Char.isLower
+                , inner = \c -> Set.member c termSyms
                 , reserved = Set.empty
                 }
-            |. Parser.symbol "]"
         , Parser.succeed identity
             |. Parser.symbol "("
             |. Parser.spaces
@@ -80,28 +78,23 @@ singleExpr =
         |. Parser.spaces
 
 
+termSyms : Set Char
+termSyms = Set.fromList ['\'', '*', '`', '~']
+
+
 parseExpr : String -> Result String PlainExpr
 parseExpr input =
     Parser.run expr input
         |> Result.mapError Parser.deadEndsToString
 
 
-type TermType
-    = Free
-    | Bound
-
-
-type alias MatchExpr =
-    Expr TermType
-
-
-matchExpr : MatchExpr -> PlainExpr -> Maybe (Dict String PlainExpr)
+matchExpr : PlainExpr -> PlainExpr -> Maybe (Dict String PlainExpr)
 matchExpr pattern toMatch =
     case ( pattern, toMatch ) of
-        ( Term Free t, val ) ->
-            Just <| Dict.singleton t val
+        ( FreeVar () v, val ) ->
+            Just <| Dict.singleton v val
 
-        ( Term Bound t1, Term () t2 ) ->
+        ( Term () t1, Term () t2 ) ->
             if t1 == t2 then
                 Just Dict.empty
 
@@ -120,19 +113,15 @@ matchExpr pattern toMatch =
             Nothing
 
 
-freeAllTermsButHead : PlainExpr -> MatchExpr
-freeAllTermsButHead e =
-    case e of
-        Term () t -> Term Bound t
-        Appl () x y -> Appl Bound (freeAllTermsButHead x) (mapExpr (\_ -> Free) y)
-
-
-type alias RewriteRule = (MatchExpr, PlainExpr)
+type alias RewriteRule =
+    { pattern : PlainExpr
+    , replacement : PlainExpr
+    }
 
 
 rewriteRule : Parser RewriteRule
 rewriteRule =
-    Parser.succeed (\pattern rewritten -> (freeAllTermsButHead pattern, rewritten))
+    Parser.succeed (\x y -> { pattern = x, replacement = y })
         |= expr
         |. Parser.spaces
         |. Parser.symbol "="
@@ -149,16 +138,19 @@ parseRewriteRule input =
 
 
 tryRule : RewriteRule -> PlainExpr -> Maybe PlainExpr
-tryRule (pattern, rewrite) e =
+tryRule { pattern, replacement } e =
     matchExpr pattern e
-        |> Maybe.map (performSubstitutions rewrite)
+        |> Maybe.map (performSubstitutions replacement)
 
 
 performSubstitutions : PlainExpr -> Dict String PlainExpr -> PlainExpr
 performSubstitutions e bindings =
     case e of
         Term () t ->
-            Dict.get t bindings
+            Term () t
+
+        FreeVar () v ->
+            Dict.get v bindings
                 |> Maybe.withDefault e
 
         Appl () x y ->
@@ -176,6 +168,8 @@ applyRulesOnce rules toRewrite =
         Nothing ->
             case toRewrite of
                 Term () _ -> Nothing
+
+                FreeVar () _ -> Nothing
 
                 Appl () x y ->
                     Maybe.orListLazy

@@ -51,6 +51,23 @@ exprSuite =
                         (Term () "C")
                     )
                 )
+            , assertParseResult
+                "free variables"
+                "Ax"
+                (Appl ()
+                     (Term () "A")
+                     (FreeVar () "x")
+                )
+            , assertParseResult
+                "long names"
+                "A'b*'c~~"
+                (Appl ()
+                     (Appl ()
+                        (Term () "A'")
+                        (FreeVar () "b*'")
+                     )
+                     (FreeVar () "c~~")
+                )
             ]
         , describe "matching"
             [ assertMatchExpr
@@ -150,10 +167,7 @@ assertMatchExpr name pattern toMatch expect =
         \_ ->
             Maybe.andThen2
                 matchExpr
-                (parseExpr pattern
-                    |> Result.map freeAllTermsButHead
-                    |> Result.toMaybe
-                )
+                (parseExpr pattern |> Result.toMaybe)
                 (parseExpr toMatch |> Result.toMaybe)
                 |> Expect.equal
                     (expect
