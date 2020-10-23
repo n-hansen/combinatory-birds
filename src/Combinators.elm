@@ -1,14 +1,14 @@
 module Combinators exposing
-  ( Expr(..)
-  , PlainExpr
-  , RewriteRule
-  , parseExpr
-  , parseRewriteRule
-  , parseRuleset
-  , matchExpr
-  , tryRule
-  , applyRulesOnce
-  )
+    ( Expr(..)
+    , PlainExpr
+    , RewriteRule
+    , applyRulesOnce
+    , matchExpr
+    , parseExpr
+    , parseRewriteRule
+    , parseRuleset
+    , tryRule
+    )
 
 import Char
 import Dict exposing (Dict)
@@ -21,7 +21,9 @@ import Result
 import Set exposing (Set)
 
 
+
 -- Types
+
 
 type Expr a
     = Term a String
@@ -48,9 +50,15 @@ type alias Program =
 mapExpr : (a -> b) -> Expr a -> Expr b
 mapExpr f e =
     case e of
-        Term a t -> Term (f a) t
-        FreeVar a v -> FreeVar (f a) v
-        Appl a x y -> Appl (f a) (mapExpr f x) (mapExpr f y)
+        Term a t ->
+            Term (f a) t
+
+        FreeVar a v ->
+            FreeVar (f a) v
+
+        Appl a x y ->
+            Appl (f a) (mapExpr f x) (mapExpr f y)
+
 
 
 -- Parsers
@@ -60,15 +68,20 @@ whitespace : Parser ()
 whitespace =
     let
         ifProgress parser offset =
-             Parser.succeed identity
-                 |. parser
-                 |= Parser.getOffset
-                 |> Parser.map
-                    (\newOffset -> if offset == newOffset
-                                   then Parser.Done ()
-                                   else Parser.Loop newOffset)
+            Parser.succeed identity
+                |. parser
+                |= Parser.getOffset
+                |> Parser.map
+                    (\newOffset ->
+                        if offset == newOffset then
+                            Parser.Done ()
+
+                        else
+                            Parser.Loop newOffset
+                    )
     in
-        Parser.loop 0 <| ifProgress <|
+    Parser.loop 0 <|
+        ifProgress <|
             Parser.oneOf
                 [ Parser.lineComment "//"
                 , Parser.lineComment "#"
@@ -116,26 +129,27 @@ singleExpr =
         , Parser.succeed identity
             |. Parser.symbol "["
             |= Parser.oneOf
-               [ Parser.variable
-                     { start = Char.isLower
-                     , inner = \c -> c /= ']'
-                     , reserved = Set.empty
-                     }
-                     |> Parser.map (FreeVar ())
-               , Parser.variable
-                   { start = \c -> not (Char.isLower c) && c /= ']'
-                   , inner = \c -> c /= ']'
-                   , reserved = Set.empty
-                   }
-                   |> Parser.map (Term ())
-               ]
+                [ Parser.variable
+                    { start = Char.isLower
+                    , inner = \c -> c /= ']'
+                    , reserved = Set.empty
+                    }
+                    |> Parser.map (FreeVar ())
+                , Parser.variable
+                    { start = \c -> not (Char.isLower c) && c /= ']'
+                    , inner = \c -> c /= ']'
+                    , reserved = Set.empty
+                    }
+                    |> Parser.map (Term ())
+                ]
             |. Parser.symbol "]"
         ]
         |. whitespace
 
 
 termSyms : Set Char
-termSyms = Set.fromList ['\'', '*', '`', '~']
+termSyms =
+    Set.fromList [ '\'', '*', '`', '~' ]
 
 
 parseExpr : String -> Result String PlainExpr
@@ -162,19 +176,21 @@ parseRewriteRule input =
 rewriteRuleset : Parser (List RewriteRule)
 rewriteRuleset =
     Parser.sequence
-    { start = ""
-    , separator = "."
-    , end = ""
-    , spaces = whitespace
-    , item = rewriteRule
-    , trailing = Parser.Mandatory
-    }
+        { start = ""
+        , separator = "."
+        , end = ""
+        , spaces = whitespace
+        , item = rewriteRule
+        , trailing = Parser.Mandatory
+        }
 
 
 parseRuleset : String -> Result String (List RewriteRule)
 parseRuleset input =
     Parser.run rewriteRuleset input
         |> Result.mapError Parser.deadEndsToString
+
+
 
 -- Rewriting
 
@@ -228,22 +244,26 @@ applyRulesOnce : List RewriteRule -> PlainExpr -> Maybe PlainExpr
 applyRulesOnce rules toRewrite =
     case
         rules
-            |> List.map ( \rule -> \_ -> tryRule rule toRewrite )
+            |> List.map (\rule -> \_ -> tryRule rule toRewrite)
             |> Maybe.orListLazy
     of
-        Just rewritten -> Just rewritten
+        Just rewritten ->
+            Just rewritten
+
         Nothing ->
             case toRewrite of
-                Term () _ -> Nothing
+                Term () _ ->
+                    Nothing
 
-                FreeVar () _ -> Nothing
+                FreeVar () _ ->
+                    Nothing
 
                 Appl () x y ->
                     Maybe.orListLazy
                         [ \_ ->
-                              applyRulesOnce rules x
-                              |> Maybe.map (\rw -> Appl () rw y)
+                            applyRulesOnce rules x
+                                |> Maybe.map (\rw -> Appl () rw y)
                         , \_ ->
-                              applyRulesOnce rules y
-                              |> Maybe.map (\rw -> Appl () x rw)
+                            applyRulesOnce rules y
+                                |> Maybe.map (\rw -> Appl () x rw)
                         ]

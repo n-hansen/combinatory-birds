@@ -55,38 +55,38 @@ exprSuite =
                 "free variables"
                 "Ax"
                 (Appl ()
-                     (Term () "A")
-                     (FreeVar () "x")
+                    (Term () "A")
+                    (FreeVar () "x")
                 )
             , assertParseResult
                 "long names"
                 "A'b*'c~~"
                 (Appl ()
-                     (Appl ()
+                    (Appl ()
                         (Term () "A'")
                         (FreeVar () "b*'")
-                     )
-                     (FreeVar () "c~~")
+                    )
+                    (FreeVar () "c~~")
                 )
             , assertParseResult
                 "bracketed identifiers"
                 "[Abcd] [efgH]"
                 (Appl ()
-                     (Term () "Abcd")
-                     (FreeVar () "efgH")
+                    (Term () "Abcd")
+                    (FreeVar () "efgH")
                 )
             , assertParseResult
                 "whitespace"
                 "A\nB#foo\n(C--bar\nD\n   )"
                 (Appl ()
-                     (Appl ()
-                          (Term () "A")
-                          (Term () "B")
-                     )
-                     (Appl ()
-                          (Term () "C")
-                          (Term () "D")
-                     )
+                    (Appl ()
+                        (Term () "A")
+                        (Term () "B")
+                    )
+                    (Appl ()
+                        (Term () "C")
+                        (Term () "D")
+                    )
                 )
             ]
         , describe "matching"
@@ -145,30 +145,30 @@ exprSuite =
             ]
         , describe "recursive rule application"
             [ assertApplyRulesOnce
-                  "immediate application"
-                  "Ix=x."
-                  "IA"
-                  (Just "A")
+                "immediate application"
+                "Ix=x."
+                "IA"
+                (Just "A")
             , assertApplyRulesOnce
-                  "multiple rules"
-                  "Ix=x. Kxy=x."
-                  "KAB"
-                  (Just "A")
+                "multiple rules"
+                "Ix=x. Kxy=x."
+                "KAB"
+                (Just "A")
             , assertApplyRulesOnce
-                  "recursive Application"
-                  "Ix=x."
-                  "A(IXY)"
-                  (Just "A(XY)")
+                "recursive Application"
+                "Ix=x."
+                "A(IXY)"
+                (Just "A(XY)")
             , assertApplyRulesOnce
-                  "multiple rules 2"
-                  "Ix=x. Kxy=x."
-                  "A(KII)"
-                  (Just "AI")
+                "multiple rules 2"
+                "Ix=x. Kxy=x."
+                "A(KII)"
+                (Just "AI")
             , assertApplyRulesOnce
-                  "failed match"
-                  "Ix=x."
-                  "XYZ(A(BI))"
-                  Nothing
+                "failed match"
+                "Ix=x."
+                "XYZ(A(BI))"
+                Nothing
             ]
         ]
 
@@ -219,8 +219,8 @@ assertApplyRulesOnce name rules input expect =
     test name <|
         \_ ->
             Maybe.andThen2 applyRulesOnce
-                ( parseRuleset rules
-                      |> Result.toMaybe
+                (parseRuleset rules
+                    |> Result.toMaybe
                 )
-                ( parseExpr input |> Result.toMaybe )
+                (parseExpr input |> Result.toMaybe)
                 |> Expect.equal (expect |> Maybe.andThen (parseExpr >> Result.toMaybe))
