@@ -4,6 +4,7 @@ module Combinators exposing
   , RewriteRule
   , parseExpr
   , parseRewriteRule
+  , parseRuleset
   , matchExpr
   , tryRule
   , applyRulesOnce
@@ -20,10 +21,28 @@ import Result
 import Set exposing (Set)
 
 
+-- Types
+
 type Expr a
     = Term a String
     | FreeVar a String
     | Appl a (Expr a) (Expr a)
+
+
+type alias PlainExpr =
+    Expr ()
+
+
+type alias RewriteRule =
+    { pattern : PlainExpr
+    , replacement : PlainExpr
+    }
+
+
+type alias Program =
+    { rules : List RewriteRule
+    , expr : PlainExpr
+    }
 
 
 mapExpr : (a -> b) -> Expr a -> Expr b
@@ -34,8 +53,28 @@ mapExpr f e =
         Appl a x y -> Appl (f a) (mapExpr f x) (mapExpr f y)
 
 
-type alias PlainExpr =
-    Expr ()
+-- Parsers
+
+
+whitespace : Parser ()
+whitespace =
+    let
+        ifProgress parser offset =
+             Parser.succeed identity
+                 |. parser
+                 |= Parser.getOffset
+                 |> Parser.map
+                    (\newOffset -> if offset == newOffset
+                                   then Parser.Done ()
+                                   else Parser.Loop newOffset)
+    in
+        Parser.loop 0 <| ifProgress <|
+            Parser.oneOf
+                [ Parser.lineComment "//"
+                , Parser.lineComment "#"
+                , Parser.lineComment "--"
+                , Parser.spaces
+                ]
 
 
 expr : Parser PlainExpr
@@ -71,11 +110,28 @@ singleExpr =
                 }
         , Parser.succeed identity
             |. Parser.symbol "("
-            |. Parser.spaces
+            |. whitespace
             |= Parser.lazy (\_ -> expr)
             |. Parser.symbol ")"
+        , Parser.succeed identity
+            |. Parser.symbol "["
+            |= Parser.oneOf
+               [ Parser.variable
+                     { start = Char.isLower
+                     , inner = \c -> c /= ']'
+                     , reserved = Set.empty
+                     }
+                     |> Parser.map (FreeVar ())
+               , Parser.variable
+                   { start = \c -> not (Char.isLower c) && c /= ']'
+                   , inner = \c -> c /= ']'
+                   , reserved = Set.empty
+                   }
+                   |> Parser.map (Term ())
+               ]
+            |. Parser.symbol "]"
         ]
-        |. Parser.spaces
+        |. whitespace
 
 
 termSyms : Set Char
@@ -86,6 +142,41 @@ parseExpr : String -> Result String PlainExpr
 parseExpr input =
     Parser.run expr input
         |> Result.mapError Parser.deadEndsToString
+
+
+rewriteRule : Parser RewriteRule
+rewriteRule =
+    Parser.succeed (\x y -> { pattern = x, replacement = y })
+        |= expr
+        |. Parser.symbol "="
+        |. whitespace
+        |= expr
+
+
+parseRewriteRule : String -> Result String RewriteRule
+parseRewriteRule input =
+    Parser.run rewriteRule input
+        |> Result.mapError Parser.deadEndsToString
+
+
+rewriteRuleset : Parser (List RewriteRule)
+rewriteRuleset =
+    Parser.sequence
+    { start = ""
+    , separator = "."
+    , end = ""
+    , spaces = whitespace
+    , item = rewriteRule
+    , trailing = Parser.Mandatory
+    }
+
+
+parseRuleset : String -> Result String (List RewriteRule)
+parseRuleset input =
+    Parser.run rewriteRuleset input
+        |> Result.mapError Parser.deadEndsToString
+
+-- Rewriting
 
 
 matchExpr : PlainExpr -> PlainExpr -> Maybe (Dict String PlainExpr)
@@ -111,30 +202,6 @@ matchExpr pattern toMatch =
 
         ( _, _ ) ->
             Nothing
-
-
-type alias RewriteRule =
-    { pattern : PlainExpr
-    , replacement : PlainExpr
-    }
-
-
-rewriteRule : Parser RewriteRule
-rewriteRule =
-    Parser.succeed (\x y -> { pattern = x, replacement = y })
-        |= expr
-        |. Parser.spaces
-        |. Parser.symbol "="
-        |. Parser.spaces
-        |= expr
-        |. Parser.spaces
-        |. Parser.oneOf [Parser.symbol ".", Parser.symbol ";"]
-
-
-parseRewriteRule : String -> Result String RewriteRule
-parseRewriteRule input =
-    Parser.run rewriteRule input
-        |> Result.mapError Parser.deadEndsToString
 
 
 tryRule : RewriteRule -> PlainExpr -> Maybe PlainExpr

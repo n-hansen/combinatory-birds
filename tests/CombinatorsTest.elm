@@ -68,6 +68,26 @@ exprSuite =
                      )
                      (FreeVar () "c~~")
                 )
+            , assertParseResult
+                "bracketed identifiers"
+                "[Abcd] [efgH]"
+                (Appl ()
+                     (Term () "Abcd")
+                     (FreeVar () "efgH")
+                )
+            , assertParseResult
+                "whitespace"
+                "A\nB#foo\n(C--bar\nD\n   )"
+                (Appl ()
+                     (Appl ()
+                          (Term () "A")
+                          (Term () "B")
+                     )
+                     (Appl ()
+                          (Term () "C")
+                          (Term () "D")
+                     )
+                )
             ]
         , describe "matching"
             [ assertMatchExpr
@@ -104,49 +124,49 @@ exprSuite =
         , describe "direct rule application"
             [ assertTryRule
                 "I"
-                "Ix=x."
+                "Ix=x"
                 "IA"
                 (Just "A")
             , assertTryRule
                 "K"
-                "Kxy=x."
+                "Kxy=x"
                 "KBA"
                 (Just "B")
             , assertTryRule
                 "S"
-                "Sxyz=xz(yz)."
+                "Sxyz=xz(yz)"
                 "SKSK"
                 (Just "KK(SK)")
             , assertTryRule
                 "failed match"
-                "Ix=x."
+                "Ix=x"
                 "III"
                 Nothing
             ]
         , describe "recursive rule application"
             [ assertApplyRulesOnce
                   "immediate application"
-                  ["Ix=x."]
+                  "Ix=x."
                   "IA"
                   (Just "A")
             , assertApplyRulesOnce
                   "multiple rules"
-                  ["Ix=x.", "Kxy=x."]
+                  "Ix=x. Kxy=x."
                   "KAB"
                   (Just "A")
             , assertApplyRulesOnce
                   "recursive Application"
-                  ["Ix=x."]
+                  "Ix=x."
                   "A(IXY)"
                   (Just "A(XY)")
             , assertApplyRulesOnce
                   "multiple rules 2"
-                  ["Ix=x.", "Kxy=x."]
+                  "Ix=x. Kxy=x."
                   "A(KII)"
                   (Just "AI")
             , assertApplyRulesOnce
                   "failed match"
-                  ["Ix=x."]
+                  "Ix=x."
                   "XYZ(A(BI))"
                   Nothing
             ]
@@ -194,14 +214,13 @@ assertTryRule name rule input expect =
                 |> Expect.equal (expect |> Maybe.andThen (parseExpr >> Result.toMaybe))
 
 
-assertApplyRulesOnce : String -> List String -> String -> Maybe String -> Test
+assertApplyRulesOnce : String -> String -> String -> Maybe String -> Test
 assertApplyRulesOnce name rules input expect =
     test name <|
         \_ ->
             Maybe.andThen2 applyRulesOnce
-                ( rules
-                      |> List.map (parseRewriteRule >> Result.toMaybe)
-                      |> Maybe.combine
+                ( parseRuleset rules
+                      |> Result.toMaybe
                 )
                 ( parseExpr input |> Result.toMaybe )
                 |> Expect.equal (expect |> Maybe.andThen (parseExpr >> Result.toMaybe))
