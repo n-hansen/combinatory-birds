@@ -154,7 +154,7 @@ termSyms =
 
 parseExpr : String -> Result String PlainExpr
 parseExpr input =
-    Parser.run expr input
+    Parser.run (expr |. Parser.end) input
         |> Result.mapError Parser.deadEndsToString
 
 
@@ -169,7 +169,7 @@ rewriteRule =
 
 parseRewriteRule : String -> Result String RewriteRule
 parseRewriteRule input =
-    Parser.run rewriteRule input
+    Parser.run (rewriteRule |. Parser.end) input
         |> Result.mapError Parser.deadEndsToString
 
 
@@ -187,7 +187,7 @@ rewriteRuleset =
 
 parseRuleset : String -> Result String (List RewriteRule)
 parseRuleset input =
-    Parser.run rewriteRuleset input
+    Parser.run (rewriteRuleset |. Parser.end) input
         |> Result.mapError Parser.deadEndsToString
 
 
