@@ -41,12 +41,6 @@ type alias RewriteRule =
     }
 
 
-type alias Program =
-    { rules : List RewriteRule
-    , expr : PlainExpr
-    }
-
-
 mapExpr : (a -> b) -> Expr a -> Expr b
 mapExpr f e =
     case e of

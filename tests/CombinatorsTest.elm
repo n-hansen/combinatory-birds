@@ -14,14 +14,7 @@ import Test exposing (..)
 
 suite : Test
 suite =
-    describe "main test suite"
-        [ exprSuite
-        ]
-
-
-exprSuite : Test
-exprSuite =
-    describe "Expr handling"
+    describe "Combinators"
         [ describe "parser"
             [ assertParseResult
                 "single term"
