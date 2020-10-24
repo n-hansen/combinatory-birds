@@ -1,5 +1,6 @@
 module CombinatorsTest exposing (suite)
 
+import Char
 import Combinators exposing (..)
 import Dict
 import Expect exposing (Expectation)
@@ -7,8 +8,11 @@ import Fuzz exposing (Fuzzer, int, list, string)
 import List
 import Maybe
 import Maybe.Extra as Maybe
+import Random exposing (Generator)
 import Result
 import Result.Extra as Result
+import Shrink
+import String
 import Test exposing (..)
 
 
@@ -81,6 +85,24 @@ suite =
                         (Term () "D")
                     )
                 )
+            ]
+        , describe "printer"
+            [ fuzz exprFuzzer "pretty printer roundtrips successfully" <|
+                \expr ->
+                    expr
+                        |> pprintExpr
+                        |> parseExpr
+                        |> Expect.equal (Ok expr)
+            , test "non-essential parens are elided" <|
+                \_ ->
+                    Appl ()
+                        (Appl ()
+                            (Term () "A")
+                            (Term () "B")
+                        )
+                        (Term () "C")
+                        |> pprintExpr
+                        |> Expect.equal "ABC"
             ]
         , describe "matching"
             [ assertMatchExpr
@@ -217,3 +239,47 @@ assertApplyRulesOnce name rules input expect =
                 )
                 (parseExpr input |> Result.toMaybe)
                 |> Expect.equal (expect |> Maybe.andThen (parseExpr >> Result.toMaybe))
+
+
+randomExpr : Generator PlainExpr
+randomExpr =
+    Random.uniform
+        (Random.int 65 90
+            |> Random.map Char.fromCode
+            |> Random.andThen
+                (\firstChar ->
+                    Random.uniform
+                        (String.fromChar firstChar)
+                        [ String.fromList [ firstChar, '~' ]
+                        , String.fromList [ firstChar, '*', '*' ]
+                        , String.fromList [ firstChar, '0' ]
+                        , String.fromList [ firstChar, 'x' ]
+                        , String.fromList [ firstChar, 'Y' ]
+                        ]
+                )
+            |> Random.map (Term ())
+        )
+        [ Random.int 97 122
+            |> Random.map Char.fromCode
+            |> Random.andThen
+                (\firstChar ->
+                    Random.uniform
+                        (String.fromChar firstChar)
+                        [ String.fromList [ firstChar, '`' ]
+                        , String.fromList [ firstChar, '\'', '\'' ]
+                        , String.fromList [ firstChar, '0' ]
+                        , String.fromList [ firstChar, 'a' ]
+                        , String.fromList [ firstChar, 'B' ]
+                        ]
+                )
+            |> Random.map (FreeVar ())
+        , Random.map2 (Appl ())
+            (Random.lazy (\_ -> randomExpr))
+            (Random.lazy (\_ -> randomExpr))
+        ]
+        |> Random.andThen identity
+
+
+exprFuzzer : Fuzzer PlainExpr
+exprFuzzer =
+    Fuzz.custom randomExpr Shrink.noShrink
