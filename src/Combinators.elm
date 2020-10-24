@@ -1,12 +1,15 @@
 module Combinators exposing
     ( Expr(..)
     , PlainExpr
+    , Renderer
     , RewriteRule
     , applyRulesOnce
     , matchExpr
     , parseExpr
     , parseRewriteRule
     , parseRuleset
+    , pprintExpr
+    , renderExpr
     , tryRule
     )
 
@@ -19,6 +22,7 @@ import Maybe.Extra as Maybe
 import Parser exposing ((|.), (|=), Parser)
 import Result
 import Set exposing (Set)
+import String
 
 
 
@@ -183,6 +187,73 @@ parseRuleset : String -> Result String (List RewriteRule)
 parseRuleset input =
     Parser.run (rewriteRuleset |. Parser.end) input
         |> Result.mapError Parser.deadEndsToString
+
+
+
+-- Pretty Printers
+
+
+type alias Renderer a b =
+    { term : a -> String -> b
+    , freeVar : a -> String -> b
+    , appl : Bool -> a -> b -> b -> b
+    }
+
+
+renderExpr : Renderer a b -> Expr a -> b
+renderExpr r e =
+    renderExprHelper r e False
+
+
+renderExprHelper : Renderer a b -> Expr a -> Bool -> b
+renderExprHelper r e needsParens =
+    case e of
+        Term a t ->
+            r.term a t
+
+        FreeVar a v ->
+            r.freeVar a v
+
+        Appl a x y ->
+            r.appl needsParens
+                a
+                (renderExprHelper r x False)
+                (renderExprHelper r y True)
+
+
+pprintExpr : Expr a -> String
+pprintExpr =
+    renderExpr
+        { term =
+            \_ t ->
+                if
+                    String.toList t
+                        |> List.drop 1
+                        |> List.all (\c -> Set.member c termSyms)
+                then
+                    t
+
+                else
+                    "[" ++ t ++ "]"
+        , freeVar =
+            \_ v ->
+                if
+                    String.toList v
+                        |> List.drop 1
+                        |> List.all (\c -> Set.member c termSyms)
+                then
+                    v
+
+                else
+                    "[" ++ v ++ "]"
+        , appl =
+            \needsParens _ x y ->
+                if needsParens then
+                    "(" ++ x ++ y ++ ")"
+
+                else
+                    x ++ y
+        }
 
 
 
