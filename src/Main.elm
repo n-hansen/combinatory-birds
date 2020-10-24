@@ -1,24 +1,22 @@
 module Main exposing (..)
 
-
 import Browser
+import Combinators exposing (..)
 import Css exposing (..)
 import Html as UnstyledHtml
-import Html.Styled as Html
-import Html.Styled exposing (Html, Attribute, div, input, text, toUnstyled)
-import Html.Styled.Attributes as Attr
-import Html.Styled.Attributes exposing (css, value)
+import Html.Styled as Html exposing (Attribute, Html, div, input, text, toUnstyled)
+import Html.Styled.Attributes as Attr exposing (css, value)
 import Html.Styled.Events exposing (onInput)
 import Maybe
 import Maybe.Extra as Maybe
-import Combinators exposing (..)
+
 
 
 -- MAIN
 
 
 main =
-  Browser.sandbox { init = init, update = update, view = view >> toUnstyled }
+    Browser.sandbox { init = init, update = update, view = view >> toUnstyled }
 
 
 
@@ -26,18 +24,18 @@ main =
 
 
 type alias Model =
-  { textContent : String
-  , parsedExpr : Maybe PlainExpr
-  , error : Maybe String
-  }
+    { textContent : String
+    , parsedExpr : Maybe PlainExpr
+    , error : Maybe String
+    }
 
 
 init : Model
 init =
-  { textContent = ""
-  , parsedExpr = Nothing
-  , error = Nothing
-  }
+    { textContent = ""
+    , parsedExpr = Nothing
+    , error = Nothing
+    }
 
 
 
@@ -45,28 +43,29 @@ init =
 
 
 type Msg
-  = Change String
+    = Change String
 
 
 update : Msg -> Model -> Model
 update msg model =
-  case msg of
-    Change "" -> init
+    case msg of
+        Change "" ->
+            init
 
-    Change newContent ->
-        case parseExpr newContent of
-            Ok expr ->
-                { model
-                      | textContent = newContent
-                      , parsedExpr = Just expr
-                      , error = Nothing
-                }
+        Change newContent ->
+            case parseExpr newContent of
+                Ok expr ->
+                    { model
+                        | textContent = newContent
+                        , parsedExpr = Just expr
+                        , error = Nothing
+                    }
 
-            Err err ->
-                { model
-                      | textContent = newContent
-                      , error = Just err
-                }
+                Err err ->
+                    { model
+                        | textContent = newContent
+                        , error = Just err
+                    }
 
 
 
