@@ -75,44 +75,45 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-  div []
-    [ input [ value model.textContent, onInput Change ] []
-    , model.parsedExpr
-        |> Maybe.map renderExpr
-        |> Maybe.toList
-        |> div [ css [displayFlex] ]
-    ]
+    div []
+        [ input [ value model.textContent, onInput Change ] []
+        , model.parsedExpr
+            |> Maybe.map (renderExpr flatTreeRenderer)
+            |> Maybe.toList
+            |> div [ css [ displayFlex ] ]
+        ]
 
 
-renderExpr : PlainExpr -> Html Msg
-renderExpr expr =
-    case expr of
-        Term () t ->
+flatTreeRenderer : Renderer () (Html Msg)
+flatTreeRenderer =
+    { term =
+        \_ t ->
             div
-            [ css
-                  [ padding <| em 0.1
-                  ]
-            ]
-            [ text t ]
-
-        FreeVar () v ->
+                [ css
+                    [ padding <| em 0.1
+                    ]
+                ]
+                [ text t ]
+    , freeVar =
+        \_ v ->
             div
-            [ css
-                  [ padding <| em 0.1
-                  , fontStyle italic
-                  ]
-            ]
-            [ text v ]
-
-        Appl () x y ->
+                [ css
+                    [ padding <| em 0.1
+                    , fontStyle italic
+                    ]
+                ]
+                [ text v ]
+    , appl =
+        \_ _ x y ->
             div
-            [ css
-                  [ displayFlex
-                  , flexDirection row
-                  , alignItems baseline
-                  , border3 (px 1) solid (rgb 0 0 0)
-                  , padding <| em 0.3
-                  , margin2 (px 0) (em 0.1)
-                  ]
-            ]
-            [ renderExpr x, renderExpr y ]
+                [ css
+                    [ displayFlex
+                    , flexDirection row
+                    , alignItems baseline
+                    , border3 (px 1) solid (rgb 0 0 0)
+                    , padding <| em 0.3
+                    , margin2 (px 0) (em 0.1)
+                    ]
+                ]
+                [ x, y ]
+    }
