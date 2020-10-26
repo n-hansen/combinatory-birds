@@ -1,5 +1,6 @@
 module Combinators exposing
     ( Expr(..)
+    , ParseError
     , PlainExpr
     , Renderer
     , RewriteRule
@@ -19,7 +20,7 @@ import List
 import List.Extra as List
 import Maybe
 import Maybe.Extra as Maybe
-import Parser exposing ((|.), (|=), Parser)
+import Parser exposing ((|.), (|=), DeadEnd, Parser)
 import Result
 import Set exposing (Set)
 import String
@@ -43,6 +44,9 @@ type alias RewriteRule =
     { pattern : PlainExpr
     , replacement : PlainExpr
     }
+
+
+type alias ParseError = (String, List DeadEnd)
 
 
 mapExpr : (a -> b) -> Expr a -> Expr b
@@ -151,10 +155,10 @@ termSyms =
                  , '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 
-parseExpr : String -> Result String PlainExpr
+parseExpr : String -> Result ParseError PlainExpr
 parseExpr input =
     Parser.run (expr |. Parser.end) input
-        |> Result.mapError Parser.deadEndsToString
+        |> Result.mapError (\e -> (input, e))
 
 
 rewriteRule : Parser RewriteRule
@@ -166,10 +170,10 @@ rewriteRule =
         |= expr
 
 
-parseRewriteRule : String -> Result String RewriteRule
+parseRewriteRule : String -> Result ParseError RewriteRule
 parseRewriteRule input =
     Parser.run (rewriteRule |. Parser.end) input
-        |> Result.mapError Parser.deadEndsToString
+        |> Result.mapError (\e -> (input, e))
 
 
 rewriteRuleset : Parser (List RewriteRule)
@@ -184,10 +188,10 @@ rewriteRuleset =
         }
 
 
-parseRuleset : String -> Result String (List RewriteRule)
+parseRuleset : String -> Result ParseError (List RewriteRule)
 parseRuleset input =
     Parser.run (rewriteRuleset |. Parser.end) input
-        |> Result.mapError Parser.deadEndsToString
+        |> Result.mapError (\e -> (input, e))
 
 
 

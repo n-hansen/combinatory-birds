@@ -25,3 +25,17 @@ $term-hpad: 0.2ch;
         font-style: italic;
     }
 }
+
+.parseErrors {
+    .msg {
+        color: #d61002;
+        text-decoration: underline;
+
+    }
+    span.squiggle {
+        color: #d67a02;
+    }
+    span.arr {
+        color: #d61002;
+    }
+}

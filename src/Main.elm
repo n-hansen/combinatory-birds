@@ -2,14 +2,33 @@ module Main exposing (..)
 
 import Browser
 import Combinators exposing (..)
-import Html as Html exposing (Attribute, Html, button, div, input, text, textarea)
+import Html as Html
+    exposing
+        ( Attribute
+        , Html
+        , button
+        , div
+        , input
+        , pre
+        , span
+        , table
+        , tbody
+        , td
+        , text
+        , textarea
+        , tr
+        )
 import Html.Attributes as Attr exposing (class, value)
 import Html.Events exposing (onClick, onInput)
+import List
+import List.Extra as List
 import Maybe
 import Maybe.Extra as Maybe
+import Parser exposing (Problem(..))
 import Result
 import Result.Extra as Result
 import Set exposing (Set)
+import Tuple
 
 
 
@@ -25,7 +44,7 @@ main =
 
 
 type ParseState a
-    = ShowingError String
+    = ShowingError ParseError
     | ShowingLastSuccessfulParse a
     | InitialParseState
 
@@ -93,28 +112,28 @@ type Msg
 
 update : Msg -> Model -> Model
 update msg model =
-    case (msg, model.app) of
-        (StartEdit, Editing _) ->
-                model
+    case ( msg, model.app ) of
+        ( StartEdit, Editing _ ) ->
+            model
 
-        (StartEdit, Halted _) ->
-                { model
-                    | app =
-                        Editing
-                                { program =
-                                    parseExpr model.session.programInput
-                                        |> Result.unpack
-                                            ShowingError
-                                            ShowingLastSuccessfulParse
-                                , rules =
-                                    parseRuleset model.session.rulesInput
-                                        |> Result.unpack
-                                            ShowingError
-                                            ShowingLastSuccessfulParse
-                                }
-                    }
+        ( StartEdit, Halted _ ) ->
+            { model
+                | app =
+                    Editing
+                        { program =
+                            parseExpr model.session.programInput
+                                |> Result.unpack
+                                    ShowingError
+                                    ShowingLastSuccessfulParse
+                        , rules =
+                            parseRuleset model.session.rulesInput
+                                |> Result.unpack
+                                    ShowingError
+                                    ShowingLastSuccessfulParse
+                        }
+            }
 
-        (FinishEdit, Editing editData) ->
+        ( FinishEdit, Editing editData ) ->
             case
                 ( parseExpr model.session.programInput
                 , parseRuleset model.session.rulesInput
@@ -146,75 +165,75 @@ update msg model =
                                 }
                     }
 
-        (FinishEdit, _) ->
+        ( FinishEdit, _ ) ->
             model
 
-        (ChangeProgramInput newContent, Editing editData) ->
-                    let
-                        sesh =
-                            model.session
+        ( ChangeProgramInput newContent, Editing editData ) ->
+            let
+                sesh =
+                    model.session
 
-                        nextModel =
-                            { model | session = { sesh | programInput = newContent } }
-                    in
-                    case parseExpr newContent of
-                        Ok expr ->
-                            { nextModel
-                                | app =
-                                    Editing
-                                        { editData
-                                            | program = ShowingLastSuccessfulParse expr
-                                        }
-                            }
+                nextModel =
+                    { model | session = { sesh | programInput = newContent } }
+            in
+            case parseExpr newContent of
+                Ok expr ->
+                    { nextModel
+                        | app =
+                            Editing
+                                { editData
+                                    | program = ShowingLastSuccessfulParse expr
+                                }
+                    }
 
-                        Err err ->
-                            nextModel
+                Err err ->
+                    nextModel
 
-        (ChangeProgramInput _, _) ->
+        ( ChangeProgramInput _, _ ) ->
+            model
+
+        ( ChangeRulesInput newContent, Editing editData ) ->
+            let
+                sesh =
+                    model.session
+
+                nextModel =
+                    { model | session = { sesh | rulesInput = newContent } }
+            in
+            case parseRuleset newContent of
+                Ok rules ->
+                    { nextModel
+                        | app =
+                            Editing
+                                { editData
+                                    | rules = ShowingLastSuccessfulParse rules
+                                }
+                    }
+
+                Err err ->
+                    nextModel
+
+        ( ChangeRulesInput _, _ ) ->
+            model
+
+        ( StepRules, Halted haltedData ) ->
+            case applyRulesOnce haltedData.rules haltedData.currentState of
+                Just newState ->
+                    { model
+                        | app =
+                            Halted
+                                { haltedData
+                                    | currentState = newState
+                                    , history =
+                                        haltedData.currentState
+                                            :: haltedData.history
+                                }
+                    }
+
+                Nothing ->
                     model
 
-        (ChangeRulesInput newContent, Editing editData) ->
-                    let
-                        sesh =
-                            model.session
-
-                        nextModel =
-                            { model | session = { sesh | rulesInput = newContent } }
-                    in
-                    case parseRuleset newContent of
-                        Ok rules ->
-                            { nextModel
-                                | app =
-                                    Editing
-                                        { editData
-                                            | rules = ShowingLastSuccessfulParse rules
-                                        }
-                            }
-
-                        Err err ->
-                            nextModel
-
-        (ChangeRulesInput _, _) ->
-                    model
-
-        (StepRules, Halted haltedData) ->
-                    case applyRulesOnce haltedData.rules haltedData.currentState of
-                        Just newState ->
-                            { model
-                                | app =
-                                    Halted
-                                        { haltedData
-                                            | currentState = newState
-                                            , history =
-                                                haltedData.currentState
-                                                    :: haltedData.history
-                                        }
-                            }
-
-                        Nothing ->
-                            model
-
-        (StepRules, _) ->
+        ( StepRules, _ ) ->
             model
 
 
@@ -225,15 +244,19 @@ update msg model =
 view : Model -> Html Msg
 view model =
     case model.app of
-        Editing {program, rules} ->
+        Editing { program, rules } ->
             div
                 [ class "editView" ]
+                [ div [ class "inputRow" ]
                     [ rulesInput model.session.rulesInput
                     , rulesView rules
-                    , programInput model.session.programInput
-                    , programView program
-                    , button [ onClick FinishEdit ] [ text "Submit" ]
                     ]
+                , div [ class "inputRow" ]
+                    [ programInput model.session.programInput
+                    , programView program
+                    ]
+                , div [ class "buttonRow" ] [ button [ onClick FinishEdit ] [ text "Submit" ] ]
+                ]
 
         _ ->
             div [] []
@@ -261,30 +284,45 @@ programInput input =
 
 rulesView : ParseState (List RewriteRule) -> Html Msg
 rulesView ps =
-    div [class "rulesView"] <|
-    case ps of
-        InitialParseState ->
-            [text "Enter some rules!"]
+    div [ class "rulesView" ]
+        [ case ps of
+            InitialParseState ->
+                text "Enter some rules!"
 
-        ShowingLastSuccessfulParse expr ->
-            [text "some rules"]
+            ShowingError err ->
+                parseErrorView err
 
-        ShowingError err ->
-            [div [class "parseError"] [ text err ]]
+            ShowingLastSuccessfulParse rules ->
+                table []
+                    [ rules
+                        |> List.map
+                            (\{ pattern, replacement } ->
+                                tr []
+                                    [ td [ class "pattern" ]
+                                        [ exprView pattern ]
+                                    , td [ class "arr" ]
+                                        [ text "⇒" ]
+                                    , td [ class "replacement" ]
+                                        [ exprView replacement ]
+                                    ]
+                            )
+                        |> tbody []
+                    ]
+        ]
 
 
 programView : ParseState PlainExpr -> Html Msg
 programView ps =
-    div [class "programView"] <|
+    div [ class "programView" ] <|
         case ps of
             InitialParseState ->
                 []
 
             ShowingLastSuccessfulParse expr ->
-                [exprView expr]
+                [ exprView expr ]
 
             ShowingError err ->
-                [div [class "parseError"] [text err]]
+                [ parseErrorView err ]
 
 
 flatTreeRenderer : Renderer a (Html Msg)
@@ -312,4 +350,76 @@ exprView expr =
     expr
         |> renderExpr flatTreeRenderer
         |> List.singleton
-        |> div [class "expr"]
+        |> div [ class "expr" ]
+
+
+parseErrorView : ParseError -> Html Msg
+parseErrorView ( input, err ) =
+    if input == "" then
+        div [ class "parseError" ] [ span [ class "msg" ] [ text "You need to provide some input!" ] ]
+
+    else
+        let
+            lines =
+                String.lines input
+        in
+        err
+            -- TODO maybe get smarter about handling multiple failures
+            |> List.take 1
+            |> List.map
+                (\{ row, col, problem } ->
+                    let
+                        ( before, after ) =
+                            List.splitAt row lines
+                                |> Tuple.mapBoth (String.join "\n") (String.join "\n")
+                    in
+                    pre []
+                        [ div [ class "msg" ]
+                            [ text <|
+                                "Parse Error: "
+                                    ++ (case problem of
+                                            ExpectingVariable ->
+                                                "Expected a term or variable, perhaps try a letter?"
+
+                                            ExpectingSymbol sym ->
+                                                "Expected " ++ sym
+
+                                            Problem p ->
+                                                "Encountered problem: " ++ p
+
+                                            UnexpectedChar ->
+                                                "Unexpected char"
+
+                                            Expecting expect ->
+                                                "Expected " ++ expect
+
+                                            ExpectingEnd ->
+                                                if
+                                                    (input |> String.indexes "(" |> List.length)
+                                                        /= (input |> String.indexes ")" |> List.length)
+                                                then
+                                                    "Unbalanced )"
+
+                                                else
+                                                    "Expected end (probably an illegal character)."
+
+                                            BadRepeat ->
+                                                "`Bad repeat'"
+
+                                            _ ->
+                                                "A weird problem occured, sorry."
+                                       )
+                            ]
+                        , div [ class "ctx" ]
+                            [ text before ]
+                        , div [ class "colPtr" ]
+                            [ span [ class "squiggle" ]
+                                [ text <|
+                                    String.repeat (col - 1) "~"
+                                ]
+                            , span [ class "arr" ] [ text "^" ]
+                            ]
+                        , div [ class "ctx" ] [ text after ]
+                        ]
+                )
+            |> div [ class "parseErrors" ]
