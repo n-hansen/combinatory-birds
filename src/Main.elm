@@ -8,6 +8,7 @@ import Html as Html
         , Html
         , button
         , div
+        , h6
         , input
         , pre
         , span
@@ -246,16 +247,24 @@ view model =
     case model.app of
         Editing { program, rules } ->
             div
-                [ class "editView" ]
-                [ div [ class "inputRow" ]
-                    [ rulesInput model.session.rulesInput
-                    , rulesView rules
+                [ class "container" ]
+                [ h6 [ class "mt-2" ] [ text "Rewrite rules" ]
+                , div [ class "row" ]
+                    [ div [ class "col-sm" ] [ rulesInput model.session.rulesInput ]
+                    , div [ class "col-sm" ] [ rulesView rules ]
                     ]
-                , div [ class "inputRow" ]
-                    [ programInput model.session.programInput
-                    , programView program
+                , h6 [ class "mt-2" ] [ text "Expression to evaluate" ]
+                , div [ class "row" ]
+                    [ div [ class "col-sm", class "d-flex" ]
+                        [ programInput model.session.programInput
+                        , button
+                            [ onClick FinishEdit
+                            , class "btn btn-primary ml-1"
+                            ]
+                            [ text "Go" ]
+                        ]
+                    , div [ class "col-sm" ] [ programView program ]
                     ]
-                , div [ class "buttonRow" ] [ button [ onClick FinishEdit ] [ text "Submit" ] ]
                 ]
 
         _ ->
@@ -265,8 +274,7 @@ view model =
 rulesInput : String -> Html Msg
 rulesInput input =
     textarea
-        [ class "rulesInput"
-        , Attr.rows 16
+        [ Attr.rows 12
         , onInput ChangeRulesInput
         ]
         [ text input ]
@@ -274,17 +282,18 @@ rulesInput input =
 
 programInput : String -> Html Msg
 programInput input =
-    textarea
-        [ class "programInput"
-        , Attr.rows 1
+    Html.input
+        [ Attr.type_ "text"
         , onInput ChangeProgramInput
+        , value input
+        , class "flex-grow-1"
         ]
-        [ text input ]
+        []
 
 
 rulesView : ParseState (List RewriteRule) -> Html Msg
 rulesView ps =
-    div [ class "rulesView" ]
+    div [ class "rulesView table-responsive" ]
         [ case ps of
             InitialParseState ->
                 text "Enter some rules!"
@@ -293,16 +302,16 @@ rulesView ps =
                 parseErrorView err
 
             ShowingLastSuccessfulParse rules ->
-                table []
+                table [ class "table" ]
                     [ rules
                         |> List.map
                             (\{ pattern, replacement } ->
                                 tr []
-                                    [ td [ class "pattern" ]
+                                    [ td [ class "pattern pr-1" ]
                                         [ exprView pattern ]
-                                    , td [ class "arr" ]
+                                    , td [ class "arr px-0" ]
                                         [ text "⇒" ]
-                                    , td [ class "replacement" ]
+                                    , td [ class "replacement pl-1" ]
                                         [ exprView replacement ]
                                     ]
                             )
@@ -313,7 +322,7 @@ rulesView ps =
 
 programView : ParseState PlainExpr -> Html Msg
 programView ps =
-    div [ class "programView" ] <|
+    div [] <|
         case ps of
             InitialParseState ->
                 []
@@ -422,4 +431,4 @@ parseErrorView ( input, err ) =
                         , div [ class "ctx" ] [ text after ]
                         ]
                 )
-            |> div [ class "parseErrors" ]
+            |> div [ class "parseError" ]

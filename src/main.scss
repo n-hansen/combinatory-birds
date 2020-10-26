@@ -1,6 +1,8 @@
 $term-hpad: 0.2ch;
 
 .expr {
+    display: flex;
+
     .appl {
         margin: 1px;
         border: 1px solid black;
@@ -8,6 +10,7 @@ $term-hpad: 0.2ch;
         flex-direction: row;
         align-items: center;
     }
+
     .term, .freeVar {
         margin-top: 0.1ch;
         padding: $term-hpad;
@@ -26,9 +29,11 @@ $term-hpad: 0.2ch;
     }
 }
 
-.parseErrors {
+$error-color: #d61002;
+
+.parseError {
     .msg {
-        color: #d61002;
+        color: $error-color;
         text-decoration: underline;
 
     }
@@ -36,6 +41,18 @@ $term-hpad: 0.2ch;
         color: #d67a02;
     }
     span.arr {
-        color: #d61002;
+        color: $error-color;
+    }
+}
+
+textarea {
+    width: 100%;
+}
+
+.rulesView table {
+    width: auto;
+
+    td {
+        vertical-align: middle;
     }
 }
