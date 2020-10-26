@@ -52,7 +52,27 @@ textarea {
 .rulesView table {
     width: auto;
 
+    tr:first-child {
+        td {
+            border-top: none;
+        }
+    }
+
     td {
         vertical-align: middle;
+
     }
+}
+
+.buttonRow {
+    display: flex;
+    flex-direction: row;
+
+    > .btn {
+        margin-right: 4px;
+    }
+}
+
+.historyView {
+    font-size: smaller;
 }

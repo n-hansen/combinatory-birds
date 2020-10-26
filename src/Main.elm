@@ -46,7 +46,7 @@ main =
 
 type ParseState a
     = ShowingError ParseError
-    | ShowingLastSuccessfulParse a
+    | ShowingSuccessfulParse a
     | InitialParseState
 
 
@@ -125,12 +125,12 @@ update msg model =
                             parseExpr model.session.programInput
                                 |> Result.unpack
                                     ShowingError
-                                    ShowingLastSuccessfulParse
+                                    ShowingSuccessfulParse
                         , rules =
                             parseRuleset model.session.rulesInput
                                 |> Result.unpack
                                     ShowingError
-                                    ShowingLastSuccessfulParse
+                                    ShowingSuccessfulParse
                         }
             }
 
@@ -147,7 +147,7 @@ update msg model =
                                 { initialProgram = prog
                                 , rules = rules
                                 , currentState = prog
-                                , history = []
+                                , history = [ prog ]
                                 }
                     }
 
@@ -183,7 +183,7 @@ update msg model =
                         | app =
                             Editing
                                 { editData
-                                    | program = ShowingLastSuccessfulParse expr
+                                    | program = ShowingSuccessfulParse expr
                                 }
                     }
 
@@ -207,7 +207,7 @@ update msg model =
                         | app =
                             Editing
                                 { editData
-                                    | rules = ShowingLastSuccessfulParse rules
+                                    | rules = ShowingSuccessfulParse rules
                                 }
                     }
 
@@ -225,9 +225,7 @@ update msg model =
                             Halted
                                 { haltedData
                                     | currentState = newState
-                                    , history =
-                                        haltedData.currentState
-                                            :: haltedData.history
+                                    , history = newState :: haltedData.history
                                 }
                     }
 
@@ -244,31 +242,61 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    case model.app of
-        Editing { program, rules } ->
-            div
-                [ class "container" ]
-                [ h6 [ class "mt-2" ] [ text "Rewrite rules" ]
+    div [ class "container" ] <|
+        case model.app of
+            Editing { program, rules } ->
+                [ heading "Rewrite rules"
                 , div [ class "row" ]
-                    [ div [ class "col-sm" ] [ rulesInput model.session.rulesInput ]
-                    , div [ class "col-sm" ] [ rulesView rules ]
+                    [ div [ class "col-md" ] [ rulesInput model.session.rulesInput ]
+                    , div [ class "col-md" ] [ rulesView rules ]
                     ]
-                , h6 [ class "mt-2" ] [ text "Expression to evaluate" ]
+                , heading "Expression to evaluate"
                 , div [ class "row" ]
-                    [ div [ class "col-sm", class "d-flex" ]
+                    [ div [ class "col-md d-flex" ]
                         [ programInput model.session.programInput
                         , button
-                            [ onClick FinishEdit
-                            , class "btn btn-primary ml-1"
+                            [ class "btn btn-primary ml-1"
+                            , onClick FinishEdit
                             ]
                             [ text "Go" ]
                         ]
-                    , div [ class "col-sm" ] [ programView program ]
+                    , div [ class "col-md" ] [ programView program ]
                     ]
                 ]
 
-        _ ->
-            div [] []
+            Halted { initialProgram, rules, currentState, history } ->
+                List.singleton <|
+                    div [ class "row" ] <|
+                        [ div [ class "col-md" ]
+                            [ heading "Rewrite rules"
+                            , rulesView <| ShowingSuccessfulParse rules
+                            , heading "Initial expression"
+                            , div [ class "pl-3" ] [ exprView initialProgram ]
+                            , heading "Current expression"
+                            , div [ class "pl-3" ] [ exprView currentState ]
+                            , div [ class "buttonRow mt-3" ]
+                                [ button
+                                    [ class "btn btn-light border border-secondary"
+                                    , onClick StartEdit
+                                    ]
+                                    [ text "Edit" ]
+                                , button
+                                    [ class "btn btn-primary"
+                                    , onClick StepRules
+                                    ]
+                                    [ text "Step" ]
+                                ]
+                            ]
+                        , div [ class "col-md" ]
+                            [ heading "History"
+                            , historyView history
+                            ]
+                        ]
+
+
+heading : String -> Html Msg
+heading =
+    text >> List.singleton >> h6 [ class "mt-2" ]
 
 
 rulesInput : String -> Html Msg
@@ -301,8 +329,8 @@ rulesView ps =
             ShowingError err ->
                 parseErrorView err
 
-            ShowingLastSuccessfulParse rules ->
-                table [ class "table" ]
+            ShowingSuccessfulParse rules ->
+                table [ class "table mb-0" ]
                     [ rules
                         |> List.map
                             (\{ pattern, replacement } ->
@@ -327,7 +355,7 @@ programView ps =
             InitialParseState ->
                 []
 
-            ShowingLastSuccessfulParse expr ->
+            ShowingSuccessfulParse expr ->
                 [ exprView expr ]
 
             ShowingError err ->
@@ -432,3 +460,14 @@ parseErrorView ( input, err ) =
                         ]
                 )
             |> div [ class "parseError" ]
+
+
+historyView : List (Expr a) -> Html Msg
+historyView hist =
+    hist
+        |> List.foldl
+            (\expr rendered ->
+                exprView expr :: rendered
+            )
+            []
+        |> Html.ul [ class "list-unstyled historyView" ]
