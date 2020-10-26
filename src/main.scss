@@ -1,0 +1,27 @@
+$term-hpad: 0.2ch;
+
+.expr {
+    .appl {
+        margin: 1px;
+        border: 1px solid black;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+    .term, .freeVar {
+        margin-top: 0.1ch;
+        padding: $term-hpad;
+
+        &:first-child {
+            margin-left: $term-hpad;
+        }
+
+        &:last-child {
+            margin-right: $term-hpad;
+        }
+    }
+
+    .freeVar {
+        font-style: italic;
+    }
+}

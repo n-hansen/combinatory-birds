@@ -2,13 +2,14 @@ module Main exposing (..)
 
 import Browser
 import Combinators exposing (..)
-import Css exposing (..)
-import Html as UnstyledHtml
-import Html.Styled as Html exposing (Attribute, Html, div, input, text, toUnstyled)
-import Html.Styled.Attributes as Attr exposing (css, value)
-import Html.Styled.Events exposing (onInput)
+import Html as Html exposing (Attribute, Html, button, div, input, text, textarea)
+import Html.Attributes as Attr exposing (class, value)
+import Html.Events exposing (onClick, onInput)
 import Maybe
 import Maybe.Extra as Maybe
+import Result
+import Result.Extra as Result
+import Set exposing (Set)
 
 
 
@@ -16,25 +17,65 @@ import Maybe.Extra as Maybe
 
 
 main =
-    Browser.sandbox { init = init, update = update, view = view >> toUnstyled }
+    Browser.sandbox { init = init, update = update, view = view }
 
 
 
 -- MODEL
 
 
+type ParseState a
+    = ShowingError String
+    | ShowingLastSuccessfulParse a
+    | InitialParseState
+
+
+type alias SessionData =
+    { programInput : String
+    , rulesInput : String
+    }
+
+
+type ApplicationState
+    = Editing
+        { program : ParseState PlainExpr
+        , rules : ParseState (List RewriteRule)
+        }
+    | Halted
+        { initialProgram : PlainExpr
+        , rules : List RewriteRule
+        , currentState : PlainExpr
+        , history : List PlainExpr
+
+        -- , loopDetection : Set String
+        }
+
+
+
+-- | Running { currentState : PlainExpr
+--           , history : List PlainExpr
+--           , stepsLeft : Int
+--           , loopDetection : Set String
+--           }
+
+
 type alias Model =
-    { textContent : String
-    , parsedExpr : Maybe PlainExpr
-    , error : Maybe String
+    { session : SessionData
+    , app : ApplicationState
     }
 
 
 init : Model
 init =
-    { textContent = ""
-    , parsedExpr = Nothing
-    , error = Nothing
+    { session =
+        { programInput = ""
+        , rulesInput = ""
+        }
+    , app =
+        Editing
+            { program = InitialParseState
+            , rules = InitialParseState
+            }
     }
 
 
@@ -43,29 +84,138 @@ init =
 
 
 type Msg
-    = Change String
+    = ChangeProgramInput String
+    | ChangeRulesInput String
+    | StartEdit
+    | FinishEdit
+    | StepRules
 
 
 update : Msg -> Model -> Model
 update msg model =
-    case msg of
-        Change "" ->
-            init
+    case (msg, model.app) of
+        (StartEdit, Editing _) ->
+                model
 
-        Change newContent ->
-            case parseExpr newContent of
-                Ok expr ->
-                    { model
-                        | textContent = newContent
-                        , parsedExpr = Just expr
-                        , error = Nothing
+        (StartEdit, Halted _) ->
+                { model
+                    | app =
+                        Editing
+                                { program =
+                                    parseExpr model.session.programInput
+                                        |> Result.unpack
+                                            ShowingError
+                                            ShowingLastSuccessfulParse
+                                , rules =
+                                    parseRuleset model.session.rulesInput
+                                        |> Result.unpack
+                                            ShowingError
+                                            ShowingLastSuccessfulParse
+                                }
                     }
 
-                Err err ->
+        (FinishEdit, Editing editData) ->
+            case
+                ( parseExpr model.session.programInput
+                , parseRuleset model.session.rulesInput
+                )
+            of
+                ( Ok prog, Ok rules ) ->
                     { model
-                        | textContent = newContent
-                        , error = Just err
+                        | app =
+                            Halted
+                                { initialProgram = prog
+                                , rules = rules
+                                , currentState = prog
+                                , history = []
+                                }
                     }
+
+                ( prog, rules ) ->
+                    { model
+                        | app =
+                            Editing
+                                { program =
+                                    prog
+                                        |> Result.error
+                                        |> Maybe.unwrap editData.program ShowingError
+                                , rules =
+                                    rules
+                                        |> Result.error
+                                        |> Maybe.unwrap editData.rules ShowingError
+                                }
+                    }
+
+        (FinishEdit, _) ->
+            model
+
+        (ChangeProgramInput newContent, Editing editData) ->
+                    let
+                        sesh =
+                            model.session
+
+                        nextModel =
+                            { model | session = { sesh | programInput = newContent } }
+                    in
+                    case parseExpr newContent of
+                        Ok expr ->
+                            { nextModel
+                                | app =
+                                    Editing
+                                        { editData
+                                            | program = ShowingLastSuccessfulParse expr
+                                        }
+                            }
+
+                        Err err ->
+                            nextModel
+
+        (ChangeProgramInput _, _) ->
+                    model
+
+        (ChangeRulesInput newContent, Editing editData) ->
+                    let
+                        sesh =
+                            model.session
+
+                        nextModel =
+                            { model | session = { sesh | rulesInput = newContent } }
+                    in
+                    case parseRuleset newContent of
+                        Ok rules ->
+                            { nextModel
+                                | app =
+                                    Editing
+                                        { editData
+                                            | rules = ShowingLastSuccessfulParse rules
+                                        }
+                            }
+
+                        Err err ->
+                            nextModel
+
+        (ChangeRulesInput _, _) ->
+                    model
+
+        (StepRules, Halted haltedData) ->
+                    case applyRulesOnce haltedData.rules haltedData.currentState of
+                        Just newState ->
+                            { model
+                                | app =
+                                    Halted
+                                        { haltedData
+                                            | currentState = newState
+                                            , history =
+                                                haltedData.currentState
+                                                    :: haltedData.history
+                                        }
+                            }
+
+                        Nothing ->
+                            model
+
+        (StepRules, _) ->
+            model
 
 
 
@@ -74,45 +224,92 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ input [ value model.textContent, onInput Change ] []
-        , model.parsedExpr
-            |> Maybe.map (renderExpr flatTreeRenderer)
-            |> Maybe.toList
-            |> div [ css [ displayFlex ] ]
+    case model.app of
+        Editing {program, rules} ->
+            div
+                [ class "editView" ]
+                    [ rulesInput model.session.rulesInput
+                    , rulesView rules
+                    , programInput model.session.programInput
+                    , programView program
+                    , button [ onClick FinishEdit ] [ text "Submit" ]
+                    ]
+
+        _ ->
+            div [] []
+
+
+rulesInput : String -> Html Msg
+rulesInput input =
+    textarea
+        [ class "rulesInput"
+        , Attr.rows 16
+        , onInput ChangeRulesInput
         ]
+        [ text input ]
 
 
-flatTreeRenderer : Renderer () (Html Msg)
+programInput : String -> Html Msg
+programInput input =
+    textarea
+        [ class "programInput"
+        , Attr.rows 1
+        , onInput ChangeProgramInput
+        ]
+        [ text input ]
+
+
+rulesView : ParseState (List RewriteRule) -> Html Msg
+rulesView ps =
+    div [class "rulesView"] <|
+    case ps of
+        InitialParseState ->
+            [text "Enter some rules!"]
+
+        ShowingLastSuccessfulParse expr ->
+            [text "some rules"]
+
+        ShowingError err ->
+            [div [class "parseError"] [ text err ]]
+
+
+programView : ParseState PlainExpr -> Html Msg
+programView ps =
+    div [class "programView"] <|
+        case ps of
+            InitialParseState ->
+                []
+
+            ShowingLastSuccessfulParse expr ->
+                [exprView expr]
+
+            ShowingError err ->
+                [div [class "parseError"] [text err]]
+
+
+flatTreeRenderer : Renderer a (Html Msg)
 flatTreeRenderer =
     { term =
         \_ t ->
             div
-                [ css
-                    [ padding <| em 0.1
-                    ]
-                ]
+                [ class "term" ]
                 [ text t ]
     , freeVar =
         \_ v ->
             div
-                [ css
-                    [ padding <| em 0.1
-                    , fontStyle italic
-                    ]
-                ]
+                [ class "freeVar" ]
                 [ text v ]
     , appl =
         \_ _ x y ->
             div
-                [ css
-                    [ displayFlex
-                    , flexDirection row
-                    , alignItems baseline
-                    , border3 (px 1) solid (rgb 0 0 0)
-                    , padding <| em 0.3
-                    , margin2 (px 0) (em 0.1)
-                    ]
-                ]
+                [ class "appl" ]
                 [ x, y ]
     }
+
+
+exprView : Expr a -> Html Msg
+exprView expr =
+    expr
+        |> renderExpr flatTreeRenderer
+        |> List.singleton
+        |> div [class "expr"]
