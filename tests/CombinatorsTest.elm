@@ -14,6 +14,7 @@ import Result.Extra as Result
 import Shrink
 import String
 import Test exposing (..)
+import Tuple
 
 
 suite : Test
@@ -185,6 +186,53 @@ suite =
                 "XYZ(A(BI))"
                 Nothing
             ]
+        , describe "rewriting annotations"
+            [ assertApplyRulesOnceRewriteData
+                  "immediate application"
+                  "Ix=x."
+                  (Appl emptyRewriteData
+                       (Term emptyRewriteData "I")
+                       (Term emptyRewriteData "A")
+                  )
+                  (Appl {emptyRewriteData | rewrittenTo = Just 0}
+                       (Term emptyRewriteData "I")
+                       (Term emptyRewriteData "A")
+                  )
+                  (Term {emptyRewriteData | rewrittenFrom = Just 0} "A")
+            , assertApplyRulesOnceRewriteData
+                  "nested application"
+                  "Ix=x."
+                  ( Appl emptyRewriteData
+                        (Term emptyRewriteData "S")
+                        (Appl emptyRewriteData
+                             (Term emptyRewriteData "I")
+                             (Term emptyRewriteData "A")
+                        )
+                  )
+                  ( Appl emptyRewriteData
+                        (Term emptyRewriteData "S")
+                        (Appl {emptyRewriteData | rewrittenTo = Just 0}
+                             (Term emptyRewriteData "I")
+                             (Term emptyRewriteData "A")
+                        )
+                  )
+                  (Appl emptyRewriteData
+                       (Term emptyRewriteData "S")
+                       (Term {emptyRewriteData | rewrittenFrom = Just 0} "A")
+                  )
+            , assertApplyRulesOnceRewriteData
+                  "correct rule indexing"
+                  "Mx=xx.Ix=x."
+                  (Appl emptyRewriteData
+                       (Term emptyRewriteData "I")
+                       (Term emptyRewriteData "A")
+                  )
+                  (Appl {emptyRewriteData | rewrittenTo = Just 1}
+                       (Term emptyRewriteData "I")
+                       (Term emptyRewriteData "A")
+                  )
+                  (Term {emptyRewriteData | rewrittenFrom = Just 1} "A")
+            ]
         ]
 
 
@@ -223,22 +271,70 @@ assertTryRule : String -> String -> String -> Maybe String -> Test
 assertTryRule name rule input expect =
     test name <|
         \_ ->
-            Maybe.andThen2 tryRule
+            Maybe.andThen3 tryRule
                 (parseRewriteRule rule |> Result.toMaybe)
+                (Just ())
                 (parseExpr input |> Result.toMaybe)
-                |> Expect.equal (expect |> Maybe.andThen (parseExpr >> Result.toMaybe))
+                |> Expect.equal
+                    (expect
+                        |> Maybe.andThen (parseExpr >> Result.toMaybe)
+                        |> Maybe.map
+                            (mapExpr (always emptyRewriteData)
+                                >> updateExpr
+                                    (always
+                                        { rewrittenFrom = Just ()
+                                        , rewrittenTo = Nothing
+                                        }
+                                    )
+                            )
+                    )
 
 
 assertApplyRulesOnce : String -> String -> String -> Maybe String -> Test
 assertApplyRulesOnce name rules input expect =
     test name <|
         \_ ->
+            let
+                parsedInput =
+                    parseExpr input |> Result.toMaybe
+            in
             Maybe.andThen2 applyRulesOnce
                 (parseRuleset rules
                     |> Result.toMaybe
+                    |> Maybe.map (List.map <| \x -> ( x, () ))
                 )
-                (parseExpr input |> Result.toMaybe)
-                |> Expect.equal (expect |> Maybe.andThen (parseExpr >> Result.toMaybe))
+                (parsedInput
+                    |> Maybe.map (mapExpr (always emptyRewriteData))
+                )
+                |> Maybe.map
+                    (Tuple.mapBoth
+                        (mapExpr (always ()))
+                        (mapExpr (always ()))
+                    )
+                |> Expect.equal
+                    (Maybe.map2 (\x y -> ( x, y ))
+                        parsedInput
+                        (expect
+                            |> Maybe.andThen (parseExpr >> Result.toMaybe)
+                        )
+                    )
+
+
+assertApplyRulesOnceRewriteData : String -> String -> RewrittenExpr Int -> RewrittenExpr Int -> RewrittenExpr Int -> Test
+assertApplyRulesOnceRewriteData name rules input expectFrom expectTo =
+    test name <|
+        \_ ->
+            let
+                parsedRules =
+                    parseRuleset rules
+                        |> Result.toMaybe
+                        |> Maybe.map (List.indexedMap <| \ix r -> ( r, ix ))
+            in
+            Maybe.andThen2 applyRulesOnce
+                parsedRules
+                (Just input)
+                |> Expect.equal
+                    (Just ( expectFrom, expectTo ))
 
 
 randomExpr : Generator PlainExpr

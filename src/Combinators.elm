@@ -3,8 +3,12 @@ module Combinators exposing
     , ParseError
     , PlainExpr
     , Renderer
+    , RewriteData
     , RewriteRule
+    , RewrittenExpr
     , applyRulesOnce
+    , emptyRewriteData
+    , mapExpr
     , matchExpr
     , parseExpr
     , parseRewriteRule
@@ -12,6 +16,7 @@ module Combinators exposing
     , pprintExpr
     , renderExpr
     , tryRule
+    , updateExpr
     )
 
 import Char
@@ -38,12 +43,25 @@ type Expr a
 
 type alias PlainExpr =
     Expr ()
+type alias RewrittenExpr a =
+    Expr (RewriteData a)
 
 
 type alias RewriteRule =
     { pattern : PlainExpr
     , replacement : PlainExpr
     }
+
+
+type alias RewriteData a =
+    { rewrittenFrom : Maybe a
+    , rewrittenTo : Maybe a
+    }
+
+
+emptyRewriteData : RewriteData a
+emptyRewriteData =
+    { rewrittenFrom = Nothing, rewrittenTo = Nothing }
 
 
 type alias ParseError = (String, List DeadEnd)
@@ -61,6 +79,19 @@ mapExpr f e =
         Appl a x y ->
             Appl (f a) (mapExpr f x) (mapExpr f y)
 
+
+
+updateExpr : (a -> a)  -> Expr a -> Expr a
+updateExpr f e =
+    case e of
+        Term a t ->
+            Term (f a) t
+
+        FreeVar a v ->
+            FreeVar (f a) v
+
+        Appl a x y ->
+            Appl (f a) x y
 
 
 -- Parsers
@@ -265,20 +296,20 @@ pprintExpr =
 -- Rewriting
 
 
-matchExpr : PlainExpr -> PlainExpr -> Maybe (Dict String PlainExpr)
+matchExpr : PlainExpr -> Expr a -> Maybe (Dict String PlainExpr)
 matchExpr pattern toMatch =
     case ( pattern, toMatch ) of
         ( FreeVar () v, val ) ->
-            Just <| Dict.singleton v val
+            Just <| Dict.singleton v <| mapExpr (always ()) val
 
-        ( Term () t1, Term () t2 ) ->
+        ( Term () t1, Term _ t2 ) ->
             if t1 == t2 then
                 Just Dict.empty
 
             else
                 Nothing
 
-        ( Appl _ x1 y1, Appl () x2 y2 ) ->
+        ( Appl () x1 y1, Appl _ x2 y2 ) ->
             matchExpr x1 x2
                 |> Maybe.andThen
                     (\x ->
@@ -290,10 +321,13 @@ matchExpr pattern toMatch =
             Nothing
 
 
-tryRule : RewriteRule -> PlainExpr -> Maybe PlainExpr
-tryRule { pattern, replacement } e =
+tryRule : RewriteRule -> a -> Expr b -> Maybe (RewrittenExpr a)
+tryRule { pattern, replacement } tag e =
     matchExpr pattern e
-        |> Maybe.map (performSubstitutions replacement)
+        |> Maybe.map (performSubstitutions replacement
+                          >> mapExpr (always emptyRewriteData)
+                          >> updateExpr (always {rewrittenFrom = Just tag, rewrittenTo = Nothing})
+                     )
 
 
 performSubstitutions : PlainExpr -> Dict String PlainExpr -> PlainExpr
@@ -310,30 +344,44 @@ performSubstitutions e bindings =
             Appl () (performSubstitutions x bindings) (performSubstitutions y bindings)
 
 
-applyRulesOnce : List RewriteRule -> PlainExpr -> Maybe PlainExpr
+applyRulesOnce : List (RewriteRule, a) -> RewrittenExpr a -> Maybe (RewrittenExpr a, RewrittenExpr a)
 applyRulesOnce rules toRewrite =
     case
         rules
-            |> List.map (\rule -> \_ -> tryRule rule toRewrite)
+            |> List.map (\(rule, tag) -> \_ ->
+                             tryRule rule tag toRewrite
+                             |> Maybe.map (\rw -> (rw, tag))
+                        )
             |> Maybe.orListLazy
     of
-        Just rewritten ->
-            Just rewritten
+        Just (rewritten, tag) ->
+            Just ( toRewrite
+                       |> updateExpr (\rw -> { rw | rewrittenTo = Just tag })
+                 , rewritten
+                )
 
         Nothing ->
             case toRewrite of
-                Term () _ ->
+                Term _ _ ->
                     Nothing
 
-                FreeVar () _ ->
+                FreeVar _ _ ->
                     Nothing
 
-                Appl () x y ->
+                Appl a x y ->
                     Maybe.orListLazy
                         [ \_ ->
                             applyRulesOnce rules x
-                                |> Maybe.map (\rw -> Appl () rw y)
+                                |> Maybe.map (\(from, to) ->
+                                                  ( Appl a from y
+                                                  , Appl emptyRewriteData to (mapExpr (always emptyRewriteData) y)
+                                                  )
+                                             )
                         , \_ ->
                             applyRulesOnce rules y
-                                |> Maybe.map (\rw -> Appl () x rw)
+                                |> Maybe.map (\(from, to) ->
+                                                  ( Appl a x from
+                                                  , Appl emptyRewriteData (mapExpr (always emptyRewriteData) x) to
+                                                  )
+                                             )
                         ]
