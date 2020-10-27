@@ -11,7 +11,7 @@ SHELL := bash
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
-.PHONY: all test build
+.PHONY: all test build build-dev build-gh-pages
 
 all: test build
 
@@ -31,5 +31,6 @@ site/main.css: src/main.scss
 build-dev: build/elm.js site/main.css
 >cp build/elm.js site/main.js
 
-build: build/elm.min.js site/main.css
->cp build/elm.min.js site/main.js
+build-gh-pages: build/elm.min.js site/index.html site/main.css
+>cp site/* docs/
+>cp build/elm.min.js docs/main.js
