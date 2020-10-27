@@ -382,7 +382,12 @@ executionView { initialProgram, rules, currentState, history } buttons =
     div [ class "row" ] <|
         [ div [ class "col-md" ]
             [ heading "Rewrite rules"
-            , rulesView True <| ShowingSuccessfulParse rules
+            , if List.isEmpty rules then
+                div [ class "font-italic" ]
+                    [ text "There are no rewrite rules, which may be a bit dull." ]
+
+              else
+                rulesView True <| ShowingSuccessfulParse rules
             , heading "Initial expression"
             , div [ class "pl-3" ] [ plainExprView initialProgram ]
             , heading "Current expression"

@@ -188,7 +188,6 @@ termSyms =
     Set.fromList
         [ '\''
         , '*'
-        , '`'
         , '~'
         , '0'
         , '1'
@@ -213,7 +212,10 @@ rewriteRule : Parser RewriteRule
 rewriteRule =
     Parser.succeed (\x y -> { pattern = x, replacement = y })
         |= expr
-        |. Parser.symbol "="
+        |. Parser.oneOf
+           [ Parser.symbol "="
+           , Parser.symbol "->"
+           ]
         |. whitespace
         |= expr
 
