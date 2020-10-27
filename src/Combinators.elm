@@ -43,8 +43,10 @@ type Expr a
 
 type alias PlainExpr =
     Expr ()
-type alias RewrittenExpr a =
-    Expr (RewriteData a)
+
+
+type alias RewrittenExpr =
+    Expr RewriteData
 
 
 type alias RewriteRule =
@@ -53,18 +55,19 @@ type alias RewriteRule =
     }
 
 
-type alias RewriteData a =
-    { rewrittenFrom : Maybe a
-    , rewrittenTo : Maybe a
+type alias RewriteData =
+    { rewrittenFrom : Maybe Int
+    , rewrittenTo : Maybe Int
     }
 
 
-emptyRewriteData : RewriteData a
+emptyRewriteData : RewriteData
 emptyRewriteData =
     { rewrittenFrom = Nothing, rewrittenTo = Nothing }
 
 
-type alias ParseError = (String, List DeadEnd)
+type alias ParseError =
+    ( String, List DeadEnd )
 
 
 mapExpr : (a -> b) -> Expr a -> Expr b
@@ -80,8 +83,7 @@ mapExpr f e =
             Appl (f a) (mapExpr f x) (mapExpr f y)
 
 
-
-updateExpr : (a -> a)  -> Expr a -> Expr a
+updateExpr : (a -> a) -> Expr a -> Expr a
 updateExpr f e =
     case e of
         Term a t ->
@@ -92,6 +94,7 @@ updateExpr f e =
 
         Appl a x y ->
             Appl (f a) x y
+
 
 
 -- Parsers
@@ -182,14 +185,28 @@ singleExpr =
 
 termSyms : Set Char
 termSyms =
-    Set.fromList [ '\'', '*', '`', '~'
-                 , '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+    Set.fromList
+        [ '\''
+        , '*'
+        , '`'
+        , '~'
+        , '0'
+        , '1'
+        , '2'
+        , '3'
+        , '4'
+        , '5'
+        , '6'
+        , '7'
+        , '8'
+        , '9'
+        ]
 
 
 parseExpr : String -> Result ParseError PlainExpr
 parseExpr input =
     Parser.run (expr |. Parser.end) input
-        |> Result.mapError (\e -> (input, e))
+        |> Result.mapError (\e -> ( input, e ))
 
 
 rewriteRule : Parser RewriteRule
@@ -204,7 +221,7 @@ rewriteRule =
 parseRewriteRule : String -> Result ParseError RewriteRule
 parseRewriteRule input =
     Parser.run (rewriteRule |. Parser.end) input
-        |> Result.mapError (\e -> (input, e))
+        |> Result.mapError (\e -> ( input, e ))
 
 
 rewriteRuleset : Parser (List RewriteRule)
@@ -222,7 +239,7 @@ rewriteRuleset =
 parseRuleset : String -> Result ParseError (List RewriteRule)
 parseRuleset input =
     Parser.run (rewriteRuleset |. Parser.end) input
-        |> Result.mapError (\e -> (input, e))
+        |> Result.mapError (\e -> ( input, e ))
 
 
 
@@ -321,13 +338,14 @@ matchExpr pattern toMatch =
             Nothing
 
 
-tryRule : RewriteRule -> a -> Expr b -> Maybe (RewrittenExpr a)
+tryRule : RewriteRule -> Int -> Expr b -> Maybe RewrittenExpr
 tryRule { pattern, replacement } tag e =
     matchExpr pattern e
-        |> Maybe.map (performSubstitutions replacement
-                          >> mapExpr (always emptyRewriteData)
-                          >> updateExpr (always {rewrittenFrom = Just tag, rewrittenTo = Nothing})
-                     )
+        |> Maybe.map
+            (performSubstitutions replacement
+                >> mapExpr (always emptyRewriteData)
+                >> updateExpr (always { rewrittenFrom = Just tag, rewrittenTo = Nothing })
+            )
 
 
 performSubstitutions : PlainExpr -> Dict String PlainExpr -> PlainExpr
@@ -344,20 +362,23 @@ performSubstitutions e bindings =
             Appl () (performSubstitutions x bindings) (performSubstitutions y bindings)
 
 
-applyRulesOnce : List (RewriteRule, a) -> RewrittenExpr a -> Maybe (RewrittenExpr a, RewrittenExpr a)
+applyRulesOnce : List RewriteRule -> RewrittenExpr -> Maybe ( RewrittenExpr, RewrittenExpr )
 applyRulesOnce rules toRewrite =
     case
         rules
-            |> List.map (\(rule, tag) -> \_ ->
-                             tryRule rule tag toRewrite
-                             |> Maybe.map (\rw -> (rw, tag))
-                        )
+            |> List.indexedMap
+                (\ix rule ->
+                    \_ ->
+                        tryRule rule ix toRewrite
+                            |> Maybe.map (\rw -> ( rw, ix ))
+                )
             |> Maybe.orListLazy
     of
-        Just (rewritten, tag) ->
-            Just ( toRewrite
-                       |> updateExpr (\rw -> { rw | rewrittenTo = Just tag })
-                 , rewritten
+        Just ( rewritten, tag ) ->
+            Just
+                ( toRewrite
+                    |> updateExpr (\rw -> { rw | rewrittenTo = Just tag })
+                , rewritten
                 )
 
         Nothing ->
@@ -372,16 +393,18 @@ applyRulesOnce rules toRewrite =
                     Maybe.orListLazy
                         [ \_ ->
                             applyRulesOnce rules x
-                                |> Maybe.map (\(from, to) ->
-                                                  ( Appl a from y
-                                                  , Appl emptyRewriteData to (mapExpr (always emptyRewriteData) y)
-                                                  )
-                                             )
+                                |> Maybe.map
+                                    (\( from, to ) ->
+                                        ( Appl a from y
+                                        , Appl emptyRewriteData to (mapExpr (always emptyRewriteData) y)
+                                        )
+                                    )
                         , \_ ->
                             applyRulesOnce rules y
-                                |> Maybe.map (\(from, to) ->
-                                                  ( Appl a x from
-                                                  , Appl emptyRewriteData (mapExpr (always emptyRewriteData) x) to
-                                                  )
-                                             )
+                                |> Maybe.map
+                                    (\( from, to ) ->
+                                        ( Appl a x from
+                                        , Appl emptyRewriteData (mapExpr (always emptyRewriteData) x) to
+                                        )
+                                    )
                         ]

@@ -76,3 +76,25 @@ textarea {
 .historyView {
     font-size: smaller;
 }
+
+// advance hue by the inv of the golden ratio each step
+$hue-step: 360deg * 0.618033988749895;
+
+@for $i from 0 through 20 {
+    $rw-hue: ($i * $hue-step) % 360deg;
+    .rule-swatch-#{$i} {
+        width: 1.2ex;
+        height: 1.2ex;
+        border: 1px solid gray;
+        border-radius: 50%;
+        background-color: hsl($rw-hue, 66%, 66%);
+    }
+
+    .rewrite-from-#{$i} {
+        background-color: hsl($rw-hue, 70%, 75%);
+    }
+
+    .expr .appl.rewrite-to-#{$i} {
+        border: 3px solid hsl($rw-hue, 95%, 25%);
+    }
+}

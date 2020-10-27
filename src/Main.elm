@@ -19,7 +19,7 @@ import Html as Html
         , textarea
         , tr
         )
-import Html.Attributes as Attr exposing (class, value)
+import Html.Attributes as Attr exposing (class, classList, value)
 import Html.Events exposing (onClick, onInput)
 import List
 import List.Extra as List
@@ -65,7 +65,7 @@ type ApplicationState
         { initialProgram : PlainExpr
         , rules : List RewriteRule
         , currentState : PlainExpr
-        , history : List PlainExpr
+        , history : List RewrittenExpr
 
         -- , loopDetection : Set String
         }
@@ -147,7 +147,7 @@ update msg model =
                                 { initialProgram = prog
                                 , rules = rules
                                 , currentState = prog
-                                , history = [ prog ]
+                                , history = [ mapExpr (always emptyRewriteData) prog ]
                                 }
                     }
 
@@ -218,14 +218,21 @@ update msg model =
             model
 
         ( StepRules, Halted haltedData ) ->
-            case applyRulesOnce haltedData.rules haltedData.currentState of
-                Just newState ->
+            case
+                haltedData.history
+                    |> List.head
+                    |> Maybe.andThen (applyRulesOnce haltedData.rules)
+            of
+                Just ( taggedOldState, newState ) ->
                     { model
                         | app =
                             Halted
                                 { haltedData
-                                    | currentState = newState
-                                    , history = newState :: haltedData.history
+                                    | currentState = mapExpr (always ()) newState
+                                    , history =
+                                        newState
+                                            :: taggedOldState
+                                            :: List.drop 1 haltedData.history
                                 }
                     }
 
@@ -248,7 +255,7 @@ view model =
                 [ heading "Rewrite rules"
                 , div [ class "row" ]
                     [ div [ class "col-md" ] [ rulesInput model.session.rulesInput ]
-                    , div [ class "col-md" ] [ rulesView rules ]
+                    , div [ class "col-md" ] [ rulesView False rules ]
                     ]
                 , heading "Expression to evaluate"
                 , div [ class "row" ]
@@ -269,11 +276,11 @@ view model =
                     div [ class "row" ] <|
                         [ div [ class "col-md" ]
                             [ heading "Rewrite rules"
-                            , rulesView <| ShowingSuccessfulParse rules
+                            , rulesView True <| ShowingSuccessfulParse rules
                             , heading "Initial expression"
-                            , div [ class "pl-3" ] [ exprView initialProgram ]
+                            , div [ class "pl-3" ] [ plainExprView initialProgram ]
                             , heading "Current expression"
-                            , div [ class "pl-3" ] [ exprView currentState ]
+                            , div [ class "pl-3" ] [ plainExprView currentState ]
                             , div [ class "buttonRow mt-3" ]
                                 [ button
                                     [ class "btn btn-light border border-secondary"
@@ -319,8 +326,8 @@ programInput input =
         []
 
 
-rulesView : ParseState (List RewriteRule) -> Html Msg
-rulesView ps =
+rulesView : Bool -> ParseState (List RewriteRule) -> Html Msg
+rulesView showColors ps =
     div [ class "rulesView table-responsive" ]
         [ case ps of
             InitialParseState ->
@@ -330,18 +337,35 @@ rulesView ps =
                 parseErrorView err
 
             ShowingSuccessfulParse rules ->
-                table [ class "table mb-0" ]
+                table [ class "table table-sm mb-0" ]
                     [ rules
-                        |> List.map
-                            (\{ pattern, replacement } ->
-                                tr []
-                                    [ td [ class "pattern pr-1" ]
-                                        [ exprView pattern ]
-                                    , td [ class "arr px-0" ]
-                                        [ text "⇒" ]
-                                    , td [ class "replacement pl-1" ]
-                                        [ exprView replacement ]
-                                    ]
+                        |> List.indexedMap
+                            (\ix { pattern, replacement } ->
+                                tr [] <|
+                                    Maybe.values
+                                        [ if showColors then
+                                            div
+                                                [ class <|
+                                                    "rule-swatch-"
+                                                        ++ String.fromInt (modBy 20 ix)
+                                                ]
+                                                []
+                                                |> List.singleton
+                                                |> td []
+                                                |> Just
+
+                                          else
+                                            Nothing
+                                        , Just <|
+                                            td [ class "pattern pr-1" ]
+                                                [ plainExprView pattern ]
+                                        , Just <|
+                                            td [ class "arr px-0" ]
+                                                [ text "⇒" ]
+                                        , Just <|
+                                            td [ class "replacement pl-1" ]
+                                                [ plainExprView replacement ]
+                                        ]
                             )
                         |> tbody []
                     ]
@@ -356,36 +380,63 @@ programView ps =
                 []
 
             ShowingSuccessfulParse expr ->
-                [ exprView expr ]
+                [ plainExprView expr ]
 
             ShowingError err ->
                 [ parseErrorView err ]
 
 
-flatTreeRenderer : Renderer a (Html Msg)
-flatTreeRenderer =
+flatTreeRenderer : (a -> List (Attribute Msg)) -> Renderer a (Html Msg)
+flatTreeRenderer attrs =
     { term =
-        \_ t ->
+        \a t ->
             div
-                [ class "term" ]
+                (class "term" :: attrs a)
                 [ text t ]
     , freeVar =
-        \_ v ->
+        \a v ->
             div
-                [ class "freeVar" ]
+                (class "freeVar" :: attrs a)
                 [ text v ]
     , appl =
-        \_ _ x y ->
+        \_ a x y ->
             div
-                [ class "appl" ]
+                (class "appl" :: attrs a)
                 [ x, y ]
     }
 
 
-exprView : Expr a -> Html Msg
-exprView expr =
+plainExprView : Expr a -> Html Msg
+plainExprView expr =
     expr
-        |> renderExpr flatTreeRenderer
+        |> renderExpr (flatTreeRenderer (always []))
+        |> List.singleton
+        |> div [ class "expr" ]
+
+
+rewrittenExprView : RewrittenExpr -> Html Msg
+rewrittenExprView expr =
+    expr
+        |> renderExpr
+            (flatTreeRenderer <|
+                \{ rewrittenFrom, rewrittenTo } ->
+                    Maybe.values
+                        [ rewrittenFrom
+                            |> Maybe.map
+                                (modBy 20
+                                    >> String.fromInt
+                                    >> (\s -> "rewrite-from-" ++ s)
+                                    >> class
+                                )
+                        , rewrittenTo
+                            |> Maybe.map
+                                (modBy 20
+                                    >> String.fromInt
+                                    >> (\s -> "rewrite-to-" ++ s)
+                                    >> class
+                                )
+                        ]
+            )
         |> List.singleton
         |> div [ class "expr" ]
 
@@ -462,12 +513,12 @@ parseErrorView ( input, err ) =
             |> div [ class "parseError" ]
 
 
-historyView : List (Expr a) -> Html Msg
+historyView : List RewrittenExpr -> Html Msg
 historyView hist =
     hist
         |> List.foldl
             (\expr rendered ->
-                exprView expr :: rendered
+                rewrittenExprView expr :: rendered
             )
             []
         |> Html.ul [ class "list-unstyled historyView" ]

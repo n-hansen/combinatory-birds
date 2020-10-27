@@ -273,7 +273,7 @@ assertTryRule name rule input expect =
         \_ ->
             Maybe.andThen3 tryRule
                 (parseRewriteRule rule |> Result.toMaybe)
-                (Just ())
+                (Just 42)
                 (parseExpr input |> Result.toMaybe)
                 |> Expect.equal
                     (expect
@@ -282,7 +282,7 @@ assertTryRule name rule input expect =
                             (mapExpr (always emptyRewriteData)
                                 >> updateExpr
                                     (always
-                                        { rewrittenFrom = Just ()
+                                        { rewrittenFrom = Just 42
                                         , rewrittenTo = Nothing
                                         }
                                     )
@@ -301,7 +301,6 @@ assertApplyRulesOnce name rules input expect =
             Maybe.andThen2 applyRulesOnce
                 (parseRuleset rules
                     |> Result.toMaybe
-                    |> Maybe.map (List.map <| \x -> ( x, () ))
                 )
                 (parsedInput
                     |> Maybe.map (mapExpr (always emptyRewriteData))
@@ -320,7 +319,7 @@ assertApplyRulesOnce name rules input expect =
                     )
 
 
-assertApplyRulesOnceRewriteData : String -> String -> RewrittenExpr Int -> RewrittenExpr Int -> RewrittenExpr Int -> Test
+assertApplyRulesOnceRewriteData : String -> String -> RewrittenExpr -> RewrittenExpr -> RewrittenExpr -> Test
 assertApplyRulesOnceRewriteData name rules input expectFrom expectTo =
     test name <|
         \_ ->
@@ -328,7 +327,6 @@ assertApplyRulesOnceRewriteData name rules input expectFrom expectTo =
                 parsedRules =
                     parseRuleset rules
                         |> Result.toMaybe
-                        |> Maybe.map (List.indexedMap <| \ix r -> ( r, ix ))
             in
             Maybe.andThen2 applyRulesOnce
                 parsedRules
