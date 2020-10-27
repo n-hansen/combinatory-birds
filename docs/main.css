@@ -1,0 +1,395 @@
+.expr {
+  display: flex;
+}
+.expr .appl {
+  margin: 1px;
+  border: 1px solid black;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.expr .term, .expr .freeVar {
+  padding: 0.2ch;
+}
+.expr .term:first-child, .expr .freeVar:first-child {
+  margin-left: 0.2ch;
+}
+.expr .term:last-child, .expr .freeVar:last-child {
+  margin-right: 0.2ch;
+}
+.expr .freeVar {
+  font-style: italic;
+}
+
+.parseError .msg {
+  color: #d61002;
+  text-decoration: underline;
+}
+.parseError span.squiggle {
+  color: #d67a02;
+}
+.parseError span.arr {
+  color: #d61002;
+}
+
+textarea {
+  width: 100%;
+}
+
+.rulesView table {
+  width: auto;
+}
+.rulesView table tr:first-child td {
+  border-top: none;
+}
+.rulesView table td {
+  vertical-align: middle;
+}
+
+.buttonRow {
+  display: flex;
+  flex-direction: row;
+}
+.buttonRow > .btn {
+  margin-right: 4px;
+}
+
+.historyView {
+  font-size: smaller;
+}
+
+.rule-swatch-0 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #e26f6f;
+}
+
+.rewrite-from-0 {
+  background-color: #ec9393;
+}
+
+.expr .appl.rewrite-to-0 {
+  border: 3px solid #7c0303;
+}
+
+.rule-swatch-1 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #6f90e2;
+}
+
+.rewrite-from-1 {
+  background-color: #93adec;
+}
+
+.expr .appl.rewrite-to-1 {
+  border: 3px solid #03277c;
+}
+
+.rule-swatch-2 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #b2e26f;
+}
+
+.rewrite-from-2 {
+  background-color: #c7ec93;
+}
+
+.expr .appl.rewrite-to-2 {
+  border: 3px solid #4a7c03;
+}
+
+.rule-swatch-3 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #e26fd3;
+}
+
+.rewrite-from-3 {
+  background-color: #ec93e1;
+}
+
+.expr .appl.rewrite-to-3 {
+  border: 3px solid #7c036d;
+}
+
+.rule-swatch-4 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #6fe2ce;
+}
+
+.rewrite-from-4 {
+  background-color: #93ecdd;
+}
+
+.expr .appl.rewrite-to-4 {
+  border: 3px solid #037c68;
+}
+
+.rule-swatch-5 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #e2ad6f;
+}
+
+.rewrite-from-5 {
+  background-color: #ecc393;
+}
+
+.expr .appl.rewrite-to-5 {
+  border: 3px solid #7c4503;
+}
+
+.rule-swatch-6 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #8c6fe2;
+}
+
+.rewrite-from-6 {
+  background-color: #a993ec;
+}
+
+.expr .appl.rewrite-to-6 {
+  border: 3px solid #21037c;
+}
+
+.rule-swatch-7 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #74e26f;
+}
+
+.rewrite-from-7 {
+  background-color: #96ec93;
+}
+
+.expr .appl.rewrite-to-7 {
+  border: 3px solid #087c03;
+}
+
+.rule-swatch-8 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #e26f95;
+}
+
+.rewrite-from-8 {
+  background-color: #ec93b0;
+}
+
+.expr .appl.rewrite-to-8 {
+  border: 3px solid #7c032c;
+}
+
+.rule-swatch-9 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #6fb7e2;
+}
+
+.rewrite-from-9 {
+  background-color: #93cbec;
+}
+
+.expr .appl.rewrite-to-9 {
+  border: 3px solid #034f7c;
+}
+
+.rule-swatch-10 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #d8e26f;
+}
+
+.rewrite-from-10 {
+  background-color: #e5ec93;
+}
+
+.expr .appl.rewrite-to-10 {
+  border: 3px solid #727c03;
+}
+
+.rule-swatch-11 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #ca6fe2;
+}
+
+.rewrite-from-11 {
+  background-color: #d993ec;
+}
+
+.expr .appl.rewrite-to-11 {
+  border: 3px solid #63037c;
+}
+
+.rule-swatch-12 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #6fe2a8;
+}
+
+.rewrite-from-12 {
+  background-color: #93ecbf;
+}
+
+.expr .appl.rewrite-to-12 {
+  border: 3px solid #037c40;
+}
+
+.rule-swatch-13 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #e2876f;
+}
+
+.rewrite-from-13 {
+  background-color: #eca593;
+}
+
+.expr .appl.rewrite-to-13 {
+  border: 3px solid #7c1c03;
+}
+
+.rule-swatch-14 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #6f79e2;
+}
+
+.rewrite-from-14 {
+  background-color: #939aec;
+}
+
+.expr .appl.rewrite-to-14 {
+  border: 3px solid #030e7c;
+}
+
+.rule-swatch-15 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #9ae26f;
+}
+
+.rewrite-from-15 {
+  background-color: #b4ec93;
+}
+
+.expr .appl.rewrite-to-15 {
+  border: 3px solid #317c03;
+}
+
+.rule-swatch-16 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #e26fbc;
+}
+
+.rewrite-from-16 {
+  background-color: #ec93ce;
+}
+
+.expr .appl.rewrite-to-16 {
+  border: 3px solid #7c0354;
+}
+
+.rule-swatch-17 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #6fdde2;
+}
+
+.rewrite-from-17 {
+  background-color: #93e8ec;
+}
+
+.expr .appl.rewrite-to-17 {
+  border: 3px solid #03787c;
+}
+
+.rule-swatch-18 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #e2c56f;
+}
+
+.rewrite-from-18 {
+  background-color: #ecd593;
+}
+
+.expr .appl.rewrite-to-18 {
+  border: 3px solid #7c5e03;
+}
+
+.rule-swatch-19 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #a36fe2;
+}
+
+.rewrite-from-19 {
+  background-color: #bb93ec;
+}
+
+.expr .appl.rewrite-to-19 {
+  border: 3px solid #3a037c;
+}
+
+.rule-swatch-20 {
+  width: 1.2ex;
+  height: 1.2ex;
+  border: 1px solid gray;
+  border-radius: 50%;
+  background-color: #6fe282;
+}
+
+.rewrite-from-20 {
+  background-color: #93eca1;
+}
+
+.expr .appl.rewrite-to-20 {
+  border: 3px solid #037c17;
+}
