@@ -1,6 +1,7 @@
-module Main exposing (..)
+module Main exposing (main)
 
 import Browser
+import Browser.Events exposing (onAnimationFrame)
 import Combinators exposing (..)
 import Html as Html
     exposing
@@ -26,9 +27,13 @@ import List.Extra as List
 import Maybe
 import Maybe.Extra as Maybe
 import Parser exposing (Problem(..))
+import Platform exposing (Program)
+import Platform.Cmd as Cmd exposing (Cmd)
+import Platform.Sub as Sub
 import Result
 import Result.Extra as Result
 import Set exposing (Set)
+import Task
 import Tuple
 
 
@@ -36,8 +41,14 @@ import Tuple
 -- MAIN
 
 
+main : Program () Model Msg
 main =
-    Browser.sandbox { init = init, update = update, view = view }
+    Browser.element
+        { init = always ( init, Cmd.none )
+        , update = \msg mdl -> ( update msg mdl, Cmd.none )
+        , view = view
+        , subscriptions = subscriptions
+        }
 
 
 
@@ -61,22 +72,16 @@ type ApplicationState
         { program : ParseState PlainExpr
         , rules : ParseState (List RewriteRule)
         }
-    | Halted
-        { initialProgram : PlainExpr
-        , rules : List RewriteRule
-        , currentState : PlainExpr
-        , history : List RewrittenExpr
-
-        -- , loopDetection : Set String
-        }
+    | Halted ExecutionData
+    | Running Int ExecutionData
 
 
-
--- | Running { currentState : PlainExpr
---           , history : List PlainExpr
---           , stepsLeft : Int
---           , loopDetection : Set String
---           }
+type alias ExecutionData =
+    { initialProgram : PlainExpr
+    , rules : List RewriteRule
+    , currentState : PlainExpr
+    , history : List RewrittenExpr
+    }
 
 
 type alias Model =
@@ -109,6 +114,9 @@ type Msg
     | StartEdit
     | FinishEdit
     | StepRules
+    | StartRunning
+    | TickRunning
+    | StopRunning
 
 
 update : Msg -> Model -> Model
@@ -117,7 +125,7 @@ update msg model =
         ( StartEdit, Editing _ ) ->
             model
 
-        ( StartEdit, Halted _ ) ->
+        ( StartEdit, _ ) ->
             { model
                 | app =
                     Editing
@@ -218,22 +226,10 @@ update msg model =
             model
 
         ( StepRules, Halted haltedData ) ->
-            case
-                haltedData.history
-                    |> List.head
-                    |> Maybe.andThen (applyRulesOnce haltedData.rules)
-            of
-                Just ( taggedOldState, newState ) ->
+            case stepRules haltedData of
+                Just newData ->
                     { model
-                        | app =
-                            Halted
-                                { haltedData
-                                    | currentState = mapExpr (always ()) newState
-                                    , history =
-                                        newState
-                                            :: taggedOldState
-                                            :: List.drop 1 haltedData.history
-                                }
+                        | app = Halted newData
                     }
 
                 Nothing ->
@@ -241,6 +237,73 @@ update msg model =
 
         ( StepRules, _ ) ->
             model
+
+        ( StartRunning, Halted haltedData ) ->
+            { model
+                | app = Running 50 haltedData
+            }
+
+        ( StartRunning, _ ) ->
+            model
+
+        ( StopRunning, Running _ runningData ) ->
+            { model
+                | app = Halted runningData
+            }
+
+        ( StopRunning, _ ) ->
+            model
+
+        ( TickRunning, Running stepsLeft runningData ) ->
+            case stepRules runningData of
+                Just newData ->
+                    { model
+                        | app =
+                            if stepsLeft > 0 then
+                                Running (stepsLeft - 1) newData
+
+                            else
+                                Halted newData
+                    }
+
+                Nothing ->
+                    { model
+                        | app = Halted runningData
+                    }
+
+        ( TickRunning, _ ) ->
+            model
+
+
+stepRules : ExecutionData -> Maybe ExecutionData
+stepRules data =
+    data.history
+        |> List.head
+        |> Maybe.andThen (applyRulesOnce data.rules)
+        |> Maybe.map
+            (\( taggedOldState, newState ) ->
+                { data
+                    | currentState = mapExpr (always ()) newState
+                    , history =
+                        newState
+                            :: taggedOldState
+                            :: List.drop 1 data.history
+                }
+            )
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    case model.app of
+        Running _ _ ->
+            onAnimationFrame (always TickRunning)
+
+        _ ->
+            Sub.none
 
 
 
@@ -271,39 +334,66 @@ view model =
                     ]
                 ]
 
-            Halted { initialProgram, rules, currentState, history } ->
-                List.singleton <|
-                    div [ class "row" ] <|
-                        [ div [ class "col-md" ]
-                            [ heading "Rewrite rules"
-                            , rulesView True <| ShowingSuccessfulParse rules
-                            , heading "Initial expression"
-                            , div [ class "pl-3" ] [ plainExprView initialProgram ]
-                            , heading "Current expression"
-                            , div [ class "pl-3" ] [ plainExprView currentState ]
-                            , div [ class "buttonRow mt-3" ]
-                                [ button
-                                    [ class "btn btn-light border border-secondary"
-                                    , onClick StartEdit
-                                    ]
-                                    [ text "Edit" ]
-                                , button
-                                    [ class "btn btn-primary"
-                                    , onClick StepRules
-                                    ]
-                                    [ text "Step" ]
-                                ]
+            Halted haltedData ->
+                [ executionView haltedData <|
+                    div [ class "buttonRow mt-3" ]
+                        [ button
+                            [ class "btn btn-light border border-secondary"
+                            , onClick StartEdit
                             ]
-                        , div [ class "col-md" ]
-                            [ heading "History"
-                            , historyView history
+                            [ text "Edit" ]
+                        , button
+                            [ class "btn btn-primary"
+                            , onClick StepRules
                             ]
+                            [ text "Step" ]
+                        , button
+                            [ class "btn btn-primary"
+                            , onClick StartRunning
+                            ]
+                            [ text "Run" ]
                         ]
+                ]
+
+            Running _ runningData ->
+                [ executionView runningData <|
+                    div [ class "buttonRow mt-3" ]
+                        [ button
+                            [ class "btn btn-light border border-secondary"
+                            , onClick StartEdit
+                            ]
+                            [ text "Edit" ]
+                        , button
+                            [ class "btn btn-danger"
+                            , onClick StopRunning
+                            ]
+                            [ text "Stop" ]
+                        ]
+                ]
 
 
 heading : String -> Html Msg
 heading =
     text >> List.singleton >> h6 [ class "mt-2" ]
+
+
+executionView : ExecutionData -> Html Msg -> Html Msg
+executionView { initialProgram, rules, currentState, history } buttons =
+    div [ class "row" ] <|
+        [ div [ class "col-md" ]
+            [ heading "Rewrite rules"
+            , rulesView True <| ShowingSuccessfulParse rules
+            , heading "Initial expression"
+            , div [ class "pl-3" ] [ plainExprView initialProgram ]
+            , heading "Current expression"
+            , div [ class "pl-3" ] [ plainExprView currentState ]
+            , buttons
+            ]
+        , div [ class "col-md" ]
+            [ heading "History"
+            , historyView history
+            ]
+        ]
 
 
 rulesInput : String -> Html Msg
