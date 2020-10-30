@@ -122,6 +122,11 @@ suite =
                 "AB"
                 Nothing
             , assertMatchExpr
+                "failed match 3"
+                "Axx"
+                "ABC"
+                Nothing
+            , assertMatchExpr
                 "single bound variable"
                 "Ax"
                 "AB"
@@ -136,6 +141,16 @@ suite =
                 "Axy"
                 "A(BCD)(E(FG))"
                 (Just [ ( "x", "BCD" ), ( "y", "E(FG)" ) ])
+            , assertMatchExpr
+                "repeated variables"
+                "Axx(yzy)"
+                "ABB((CD)E(CD))"
+                (Just
+                    [ ( "x", "B" )
+                    , ( "y", "CD" )
+                    , ( "z", "E" )
+                    ]
+                )
             ]
         , describe "direct rule application"
             [ assertTryRule
@@ -188,50 +203,50 @@ suite =
             ]
         , describe "rewriting annotations"
             [ assertApplyRulesOnceRewriteData
-                  "immediate application"
-                  "Ix=x."
-                  (Appl emptyRewriteData
-                       (Term emptyRewriteData "I")
-                       (Term emptyRewriteData "A")
-                  )
-                  (Appl {emptyRewriteData | rewrittenTo = Just 0}
-                       (Term emptyRewriteData "I")
-                       (Term emptyRewriteData "A")
-                  )
-                  (Term {emptyRewriteData | rewrittenFrom = Just 0} "A")
+                "immediate application"
+                "Ix=x."
+                (Appl emptyRewriteData
+                    (Term emptyRewriteData "I")
+                    (Term emptyRewriteData "A")
+                )
+                (Appl { emptyRewriteData | rewrittenTo = Just 0 }
+                    (Term emptyRewriteData "I")
+                    (Term emptyRewriteData "A")
+                )
+                (Term { emptyRewriteData | rewrittenFrom = Just 0 } "A")
             , assertApplyRulesOnceRewriteData
-                  "nested application"
-                  "Ix=x."
-                  ( Appl emptyRewriteData
-                        (Term emptyRewriteData "S")
-                        (Appl emptyRewriteData
-                             (Term emptyRewriteData "I")
-                             (Term emptyRewriteData "A")
-                        )
-                  )
-                  ( Appl emptyRewriteData
-                        (Term emptyRewriteData "S")
-                        (Appl {emptyRewriteData | rewrittenTo = Just 0}
-                             (Term emptyRewriteData "I")
-                             (Term emptyRewriteData "A")
-                        )
-                  )
-                  (Appl emptyRewriteData
-                       (Term emptyRewriteData "S")
-                       (Term {emptyRewriteData | rewrittenFrom = Just 0} "A")
-                  )
+                "nested application"
+                "Ix=x."
+                (Appl emptyRewriteData
+                    (Term emptyRewriteData "S")
+                    (Appl emptyRewriteData
+                        (Term emptyRewriteData "I")
+                        (Term emptyRewriteData "A")
+                    )
+                )
+                (Appl emptyRewriteData
+                    (Term emptyRewriteData "S")
+                    (Appl { emptyRewriteData | rewrittenTo = Just 0 }
+                        (Term emptyRewriteData "I")
+                        (Term emptyRewriteData "A")
+                    )
+                )
+                (Appl emptyRewriteData
+                    (Term emptyRewriteData "S")
+                    (Term { emptyRewriteData | rewrittenFrom = Just 0 } "A")
+                )
             , assertApplyRulesOnceRewriteData
-                  "correct rule indexing"
-                  "Mx=xx.Ix=x."
-                  (Appl emptyRewriteData
-                       (Term emptyRewriteData "I")
-                       (Term emptyRewriteData "A")
-                  )
-                  (Appl {emptyRewriteData | rewrittenTo = Just 1}
-                       (Term emptyRewriteData "I")
-                       (Term emptyRewriteData "A")
-                  )
-                  (Term {emptyRewriteData | rewrittenFrom = Just 1} "A")
+                "correct rule indexing"
+                "Mx=xx.Ix=x."
+                (Appl emptyRewriteData
+                    (Term emptyRewriteData "I")
+                    (Term emptyRewriteData "A")
+                )
+                (Appl { emptyRewriteData | rewrittenTo = Just 1 }
+                    (Term emptyRewriteData "I")
+                    (Term emptyRewriteData "A")
+                )
+                (Term { emptyRewriteData | rewrittenFrom = Just 1 } "A")
             ]
         ]
 
@@ -301,6 +316,7 @@ assertApplyRulesOnce name rules input expect =
             Maybe.andThen2 applyRulesOnce
                 (parseRuleset rules
                     |> Result.toMaybe
+                    |> Maybe.map RuleList
                 )
                 (parsedInput
                     |> Maybe.map (mapExpr (always emptyRewriteData))
@@ -327,6 +343,7 @@ assertApplyRulesOnceRewriteData name rules input expectFrom expectTo =
                 parsedRules =
                     parseRuleset rules
                         |> Result.toMaybe
+                        |> Maybe.map RuleList
             in
             Maybe.andThen2 applyRulesOnce
                 parsedRules

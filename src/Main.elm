@@ -279,7 +279,7 @@ stepRules : ExecutionData -> Maybe ExecutionData
 stepRules data =
     data.history
         |> List.head
-        |> Maybe.andThen (applyRulesOnce data.rules)
+        |> Maybe.andThen (applyRulesOnce <| RuleList data.rules)
         |> Maybe.map
             (\( taggedOldState, newState ) ->
                 { data
