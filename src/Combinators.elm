@@ -16,6 +16,7 @@ module Combinators exposing
     , parseRuleset
     , pprintExpr
     , renderExpr
+    , reverseRule
     , tryRule
     , updateExpr
     )

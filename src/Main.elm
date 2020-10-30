@@ -78,10 +78,15 @@ type ApplicationState
 
 type alias ExecutionData =
     { initialProgram : PlainExpr
-    , rules : List RewriteRule
+    , rules : List ( RewriteRule, RuleDirection )
     , currentState : PlainExpr
     , history : List RewrittenExpr
     }
+
+
+type RuleDirection
+    = Forward
+    | Reverse
 
 
 type alias Model =
@@ -153,7 +158,9 @@ update msg model =
                         | app =
                             Halted
                                 { initialProgram = prog
-                                , rules = rules
+                                , rules =
+                                    rules
+                                        |> List.map (\r -> ( r, Forward ))
                                 , currentState = prog
                                 , history = [ mapExpr (always emptyRewriteData) prog ]
                                 }
@@ -279,7 +286,20 @@ stepRules : ExecutionData -> Maybe ExecutionData
 stepRules data =
     data.history
         |> List.head
-        |> Maybe.andThen (applyRulesOnce <| RuleList data.rules)
+        |> Maybe.andThen
+            (applyRulesOnce <|
+                RuleList <|
+                    List.map
+                        (\( r, dir ) ->
+                            case dir of
+                                Forward ->
+                                    r
+
+                                Reverse ->
+                                    reverseRule r
+                        )
+                        data.rules
+            )
         |> Maybe.map
             (\( taggedOldState, newState ) ->
                 { data
@@ -421,7 +441,7 @@ programInput input =
         []
 
 
-rulesView : Bool -> ParseState (List RewriteRule) -> Html Msg
+rulesView : Bool -> ParseState (List ( RewriteRule, RuleDirection )) -> Html Msg
 rulesView showColors ps =
     div [ class "rulesView table-responsive" ]
         [ case ps of
@@ -435,7 +455,7 @@ rulesView showColors ps =
                 table [ class "table table-sm mb-0" ]
                     [ rules
                         |> List.indexedMap
-                            (\ix { pattern, replacement } ->
+                            (\ix ( { pattern, replacement }, dir ) ->
                                 tr [] <|
                                     Maybe.values
                                         [ if showColors then
@@ -455,8 +475,13 @@ rulesView showColors ps =
                                             td [ class "pattern pr-1" ]
                                                 [ plainExprView pattern ]
                                         , Just <|
-                                            td [ class "arr px-0" ]
-                                                [ text "⇒" ]
+                                            td [ class "arr px-0" ] <|
+                                                case dir of
+                                                    Forward ->
+                                                        [ text "⇒" ]
+
+                                                    Reverse ->
+                                                        [ text "⇐" ]
                                         , Just <|
                                             td [ class "replacement pl-1" ]
                                                 [ plainExprView replacement ]
