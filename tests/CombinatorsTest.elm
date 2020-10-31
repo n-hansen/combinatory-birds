@@ -248,6 +248,32 @@ suite =
                 )
                 (Term { emptyRewriteData | rewrittenFrom = Just 1 } "A")
             ]
+        , describe "rule mangling"
+            [ test "example 1" <|
+                \_ ->
+                    parseRewriteRule "Axy = yx"
+                        |> Result.map (mangleUnboundVars "0")
+                        |> Expect.all
+                            [ Expect.ok
+                            , Expect.equal (parseRewriteRule "Axy=yx")
+                            ]
+            , test "example 2" <|
+                \_ ->
+                    parseRewriteRule "x = Kxy"
+                        |> Result.map (mangleUnboundVars "0")
+                        |> Expect.all
+                            [ Expect.ok
+                            , Expect.equal (parseRewriteRule "x = Kxy0")
+                            ]
+            , test "example 3" <|
+                \_ ->
+                    parseRewriteRule "Ax = Cx(By)z"
+                        |> Result.map (mangleUnboundVars "1")
+                        |> Expect.all
+                            [ Expect.ok
+                            , Expect.equal (parseRewriteRule "Ax = Cx(By1)z1")
+                            ]
+            ]
         ]
 
 

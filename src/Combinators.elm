@@ -9,6 +9,7 @@ module Combinators exposing
     , Ruleset(..)
     , applyRulesOnce
     , emptyRewriteData
+    , mangleUnboundVars
     , mapExpr
     , matchExpr
     , parseExpr
@@ -327,6 +328,45 @@ pprintExpr =
 
 
 -- Rewriting
+
+
+mangleUnboundVars : String -> RewriteRule -> RewriteRule
+mangleUnboundVars suffix { pattern, replacement } =
+    let
+        enumerateVars e seen =
+            case e of
+                Term _ _ ->
+                    seen
+
+                FreeVar _ v ->
+                    Set.insert v seen
+
+                Appl _ x y ->
+                    seen
+                        |> enumerateVars x
+                        |> enumerateVars y
+
+        boundVars =
+            enumerateVars pattern Set.empty
+
+        updateReplacement e =
+            case e of
+                Term _ _ ->
+                    e
+
+                FreeVar a v ->
+                    if Set.member v boundVars then
+                        e
+
+                    else
+                        FreeVar a (v ++ suffix)
+
+                Appl a x y ->
+                    Appl a (updateReplacement x) (updateReplacement y)
+    in
+    { pattern = pattern
+    , replacement = updateReplacement replacement
+    }
 
 
 matchExpr : PlainExpr -> Expr a -> Maybe (Dict String PlainExpr)
