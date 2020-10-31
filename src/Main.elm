@@ -89,6 +89,16 @@ type RuleDirection
     | Reverse
 
 
+flipDirection : RuleDirection -> RuleDirection
+flipDirection d =
+    case d of
+        Forward ->
+            Reverse
+
+        Reverse ->
+            Forward
+
+
 type alias Model =
     { session : SessionData
     , app : ApplicationState
@@ -119,6 +129,7 @@ type Msg
     | StartEdit
     | FinishEdit
     | StepRules
+    | ReverseRule Int
     | StartRunning
     | TickRunning
     | StopRunning
@@ -245,6 +256,32 @@ update msg model =
         ( StepRules, _ ) ->
             model
 
+        ( ReverseRule ix, Halted haltedData ) ->
+            { model
+                | app =
+                    Halted
+                        { haltedData
+                            | rules =
+                                haltedData.rules
+                                    |> List.updateAt ix
+                                        (Tuple.mapSecond flipDirection)
+                        }
+            }
+
+        ( ReverseRule ix, Running stepsLeft runningData ) ->
+            { model
+                | app =
+                    Running stepsLeft
+                        { runningData
+                            | rules =
+                                runningData.rules
+                                    |> List.updateAt ix (Tuple.mapSecond flipDirection)
+                        }
+            }
+
+        ( ReverseRule _, _ ) ->
+            model
+
         ( StartRunning, Halted haltedData ) ->
             { model
                 | app = Running 50 haltedData
@@ -338,7 +375,7 @@ view model =
                 [ heading "Rewrite rules"
                 , div [ class "row" ]
                     [ div [ class "col-md" ] [ rulesInput model.session.rulesInput ]
-                    , div [ class "col-md" ] [ rulesView False rules ]
+                    , div [ class "col-md" ] [ editingRulesView rules ]
                     ]
                 , heading "Expression to evaluate"
                 , div [ class "row" ]
@@ -407,7 +444,7 @@ executionView { initialProgram, rules, currentState, history } buttons =
                     [ text "There are no rewrite rules, which may be a bit dull." ]
 
               else
-                rulesView True <| ShowingSuccessfulParse rules
+                executionRulesView rules
             , heading "Initial expression"
             , div [ class "pl-3" ] [ plainExprView initialProgram ]
             , heading "Current expression"
@@ -441,54 +478,82 @@ programInput input =
         []
 
 
-rulesView : Bool -> ParseState (List ( RewriteRule, RuleDirection )) -> Html Msg
-rulesView showColors ps =
-    div [ class "rulesView table-responsive" ]
-        [ case ps of
-            InitialParseState ->
-                text "Enter some rules!"
+editingRulesView : ParseState (List RewriteRule) -> Html Msg
+editingRulesView ps =
+    case ps of
+        InitialParseState ->
+            div [] [ text "Enter some rules!" ]
 
-            ShowingError err ->
-                parseErrorView err
+        ShowingError err ->
+            parseErrorView err
 
-            ShowingSuccessfulParse rules ->
-                table [ class "table table-sm mb-0" ]
-                    [ rules
-                        |> List.indexedMap
-                            (\ix ( { pattern, replacement }, dir ) ->
-                                tr [] <|
-                                    Maybe.values
-                                        [ if showColors then
-                                            div
-                                                [ class <|
-                                                    "rule-swatch-"
-                                                        ++ String.fromInt (modBy 20 ix)
-                                                ]
-                                                []
-                                                |> List.singleton
-                                                |> td []
-                                                |> Just
+        ShowingSuccessfulParse rules ->
+            rulesViewHelper Nothing Nothing <|
+                List.map (\r -> ( r, Forward )) rules
 
-                                          else
-                                            Nothing
-                                        , Just <|
-                                            td [ class "pattern pr-1" ]
-                                                [ plainExprView pattern ]
-                                        , Just <|
-                                            td [ class "arr px-0" ] <|
-                                                case dir of
-                                                    Forward ->
-                                                        [ text "⇒" ]
 
-                                                    Reverse ->
-                                                        [ text "⇐" ]
-                                        , Just <|
-                                            td [ class "replacement pl-1" ]
-                                                [ plainExprView replacement ]
-                                        ]
-                            )
-                        |> tbody []
+executionRulesView : List ( RewriteRule, RuleDirection ) -> Html Msg
+executionRulesView =
+    rulesViewHelper
+        (Just <|
+            \ix ->
+                div
+                    [ class <|
+                        "rule-swatch-"
+                            ++ String.fromInt (modBy 20 ix)
                     ]
+                    []
+                    |> List.singleton
+                    |> td []
+        )
+        (Just <|
+            \ix ->
+                div
+                    [ class "button-group button-group-sm" ]
+                    [ button
+                        [ class "btn btn-dark"
+                        , onClick <| ReverseRule ix
+                        ]
+                        [ text "⇄" ]
+                    ]
+        )
+
+
+rulesViewHelper :
+    Maybe (Int -> Html Msg)
+    -> Maybe (Int -> Html Msg)
+    -> List ( RewriteRule, RuleDirection )
+    -> Html Msg
+rulesViewHelper rowPrefix rowSuffix rules =
+    div [ class "rulesView table-responsive" ]
+        [ table [ class "table table-sm mb-0" ]
+            [ rules
+                |> List.indexedMap
+                    (\ix ( { pattern, replacement }, dir ) ->
+                        tr [] <|
+                            Maybe.values
+                                [ rowPrefix
+                                    |> Maybe.andMap (Just ix)
+                                , Just <|
+                                    td [ class "pr-1" ]
+                                        [ plainExprView pattern ]
+                                , Just <|
+                                    td [ class "arr px-0" ] <|
+                                        case dir of
+                                            Forward ->
+                                                [ text "⇒" ]
+
+                                            Reverse ->
+                                                [ text "⇐" ]
+                                , Just <|
+                                    td [ class "pl-1" ]
+                                        [ plainExprView replacement ]
+                                , rowSuffix
+                                    |> Maybe.andMap (Just ix)
+                                ]
+                    )
+                |> tbody []
+            ]
         ]
 
 
