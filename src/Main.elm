@@ -131,6 +131,7 @@ type Msg
     | StartEdit
     | FinishEdit
     | StepRules
+    | StepSingleRule RuleDirection Int
     | ReverseRule Int
     | StartRunning
     | TickRunning
@@ -256,6 +257,51 @@ update msg model =
                     model
 
         ( StepRules, _ ) ->
+            model
+
+        ( StepSingleRule dir ix, Halted haltedData ) ->
+            let
+                varSuffix =
+                    haltedData.history |> List.length |> String.fromInt
+
+                ruleM =
+                    haltedData.rules
+                        |> List.getAt ix
+                        |> Maybe.map
+                            (case dir of
+                                Forward ->
+                                    Tuple.first
+                                        >> mangleUnboundVars varSuffix
+                                        >> SingleRule ix
+
+                                Reverse ->
+                                    Tuple.first
+                                        >> reverseRule
+                                        >> mangleUnboundVars varSuffix
+                                        >> SingleRule ix
+                            )
+
+                progM =
+                    List.head haltedData.history
+            in
+            case Maybe.andThen2 applyRulesOnce ruleM progM of
+                Just ( taggedOldState, newState ) ->
+                    { model
+                        | app =
+                            Halted
+                                { haltedData
+                                    | currentState = mapExpr (always ()) newState
+                                    , history =
+                                        newState
+                                            :: taggedOldState
+                                            :: List.drop 1 haltedData.history
+                                }
+                    }
+
+                Nothing ->
+                    model
+
+        ( StepSingleRule _ _, _ ) ->
             model
 
         ( ReverseRule ix, Halted haltedData ) ->
@@ -519,10 +565,12 @@ executionRulesView =
                     List.singleton <|
                         div
                             [ class "ruleControls btn-group btn-group-sm border border-secondary rounded" ]
-                            [ button [ class "btn btn-light px-1"
-                                     , title "Step rule backward"
-                                     ]
-                                  [ featherIcon "skip-back" ]
+                            [ button
+                                [ class "btn btn-light px-1"
+                                , title "Step rule backward"
+                                , onClick <| StepSingleRule Reverse ix
+                                ]
+                                [ featherIcon "skip-back" ]
                             , button
                                 [ class "btn btn-light px-1"
                                 , title "Reverse rule direction"
@@ -532,6 +580,7 @@ executionRulesView =
                             , button
                                 [ class "btn btn-light px-1"
                                 , title "Step rule forward"
+                                , onClick <| StepSingleRule Forward ix
                                 ]
                                 [ featherIcon "skip-forward" ]
                             ]
@@ -558,12 +607,14 @@ rulesViewHelper rowPrefix rowSuffix rules =
                                         [ plainExprView pattern ]
                                 , Just <|
                                     td []
-                                    [ div [
-                                       classList [ ("arr", True)
-                                                   , ("reverse", dir == Reverse)
-                                                   ]
-                                      
-                                      ] [featherIcon "arrow-right"] ]
+                                        [ div
+                                            [ classList
+                                                [ ( "arr", True )
+                                                , ( "reverse", dir == Reverse )
+                                                ]
+                                            ]
+                                            [ featherIcon "arrow-right" ]
+                                        ]
                                 , Just <|
                                     td [ class "pl-1" ]
                                         [ plainExprView replacement ]
