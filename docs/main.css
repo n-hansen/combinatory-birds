@@ -1,3 +1,13 @@
+.feather {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
 .expr {
   display: flex;
 }
@@ -45,6 +55,16 @@ textarea {
 .rulesView table td {
   vertical-align: middle;
 }
+.rulesView table td .feather {
+  width: 18px;
+  height: 18px;
+}
+.rulesView table .ruleControls {
+  visibility: hidden;
+}
+.rulesView table tr:hover .ruleControls {
+  visibility: visible;
+}
 
 .buttonRow {
   display: flex;
@@ -58,7 +78,14 @@ textarea {
   font-size: smaller;
 }
 
-.rule-swatch-0 {
+.arr {
+  transition: transform 0.3s ease-in-out;
+}
+.arr.reverse {
+  transform: rotate(-0.5turn);
+}
+
+.ruleSwatch0 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -66,15 +93,15 @@ textarea {
   background-color: #e26f6f;
 }
 
-.rewrite-from-0 {
+.rewriteFrom0 {
   background-color: #ec9393;
 }
 
-.expr .appl.rewrite-to-0 {
-  border: 3px solid #7c0303;
+.expr .rewriteTo0 {
+  border: 3px solid #ae0404;
 }
 
-.rule-swatch-1 {
+.ruleSwatch1 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -82,15 +109,15 @@ textarea {
   background-color: #6f90e2;
 }
 
-.rewrite-from-1 {
+.rewriteFrom1 {
   background-color: #93adec;
 }
 
-.expr .appl.rewrite-to-1 {
-  border: 3px solid #03277c;
+.expr .rewriteTo1 {
+  border: 3px solid #0436ae;
 }
 
-.rule-swatch-2 {
+.ruleSwatch2 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -98,15 +125,15 @@ textarea {
   background-color: #b2e26f;
 }
 
-.rewrite-from-2 {
+.rewriteFrom2 {
   background-color: #c7ec93;
 }
 
-.expr .appl.rewrite-to-2 {
-  border: 3px solid #4a7c03;
+.expr .rewriteTo2 {
+  border: 3px solid #67ae04;
 }
 
-.rule-swatch-3 {
+.ruleSwatch3 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -114,15 +141,15 @@ textarea {
   background-color: #e26fd3;
 }
 
-.rewrite-from-3 {
+.rewriteFrom3 {
   background-color: #ec93e1;
 }
 
-.expr .appl.rewrite-to-3 {
-  border: 3px solid #7c036d;
+.expr .rewriteTo3 {
+  border: 3px solid #ae0499;
 }
 
-.rule-swatch-4 {
+.ruleSwatch4 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -130,15 +157,15 @@ textarea {
   background-color: #6fe2ce;
 }
 
-.rewrite-from-4 {
+.rewriteFrom4 {
   background-color: #93ecdd;
 }
 
-.expr .appl.rewrite-to-4 {
-  border: 3px solid #037c68;
+.expr .rewriteTo4 {
+  border: 3px solid #04ae92;
 }
 
-.rule-swatch-5 {
+.ruleSwatch5 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -146,15 +173,15 @@ textarea {
   background-color: #e2ad6f;
 }
 
-.rewrite-from-5 {
+.rewriteFrom5 {
   background-color: #ecc393;
 }
 
-.expr .appl.rewrite-to-5 {
-  border: 3px solid #7c4503;
+.expr .rewriteTo5 {
+  border: 3px solid #ae6004;
 }
 
-.rule-swatch-6 {
+.ruleSwatch6 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -162,15 +189,15 @@ textarea {
   background-color: #8c6fe2;
 }
 
-.rewrite-from-6 {
+.rewriteFrom6 {
   background-color: #a993ec;
 }
 
-.expr .appl.rewrite-to-6 {
-  border: 3px solid #21037c;
+.expr .rewriteTo6 {
+  border: 3px solid #2f04ae;
 }
 
-.rule-swatch-7 {
+.ruleSwatch7 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -178,15 +205,15 @@ textarea {
   background-color: #74e26f;
 }
 
-.rewrite-from-7 {
+.rewriteFrom7 {
   background-color: #96ec93;
 }
 
-.expr .appl.rewrite-to-7 {
-  border: 3px solid #087c03;
+.expr .rewriteTo7 {
+  border: 3px solid #0cae04;
 }
 
-.rule-swatch-8 {
+.ruleSwatch8 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -194,15 +221,15 @@ textarea {
   background-color: #e26f95;
 }
 
-.rewrite-from-8 {
+.rewriteFrom8 {
   background-color: #ec93b0;
 }
 
-.expr .appl.rewrite-to-8 {
-  border: 3px solid #7c032c;
+.expr .rewriteTo8 {
+  border: 3px solid #ae043d;
 }
 
-.rule-swatch-9 {
+.ruleSwatch9 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -210,15 +237,15 @@ textarea {
   background-color: #6fb7e2;
 }
 
-.rewrite-from-9 {
+.rewriteFrom9 {
   background-color: #93cbec;
 }
 
-.expr .appl.rewrite-to-9 {
-  border: 3px solid #034f7c;
+.expr .rewriteTo9 {
+  border: 3px solid #046fae;
 }
 
-.rule-swatch-10 {
+.ruleSwatch10 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -226,15 +253,15 @@ textarea {
   background-color: #d8e26f;
 }
 
-.rewrite-from-10 {
+.rewriteFrom10 {
   background-color: #e5ec93;
 }
 
-.expr .appl.rewrite-to-10 {
-  border: 3px solid #727c03;
+.expr .rewriteTo10 {
+  border: 3px solid #a0ae04;
 }
 
-.rule-swatch-11 {
+.ruleSwatch11 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -242,15 +269,15 @@ textarea {
   background-color: #ca6fe2;
 }
 
-.rewrite-from-11 {
+.rewriteFrom11 {
   background-color: #d993ec;
 }
 
-.expr .appl.rewrite-to-11 {
-  border: 3px solid #63037c;
+.expr .rewriteTo11 {
+  border: 3px solid #8a04ae;
 }
 
-.rule-swatch-12 {
+.ruleSwatch12 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -258,15 +285,15 @@ textarea {
   background-color: #6fe2a8;
 }
 
-.rewrite-from-12 {
+.rewriteFrom12 {
   background-color: #93ecbf;
 }
 
-.expr .appl.rewrite-to-12 {
-  border: 3px solid #037c40;
+.expr .rewriteTo12 {
+  border: 3px solid #04ae59;
 }
 
-.rule-swatch-13 {
+.ruleSwatch13 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -274,15 +301,15 @@ textarea {
   background-color: #e2876f;
 }
 
-.rewrite-from-13 {
+.rewriteFrom13 {
   background-color: #eca593;
 }
 
-.expr .appl.rewrite-to-13 {
-  border: 3px solid #7c1c03;
+.expr .rewriteTo13 {
+  border: 3px solid #ae2804;
 }
 
-.rule-swatch-14 {
+.ruleSwatch14 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -290,15 +317,15 @@ textarea {
   background-color: #6f79e2;
 }
 
-.rewrite-from-14 {
+.rewriteFrom14 {
   background-color: #939aec;
 }
 
-.expr .appl.rewrite-to-14 {
-  border: 3px solid #030e7c;
+.expr .rewriteTo14 {
+  border: 3px solid #0413ae;
 }
 
-.rule-swatch-15 {
+.ruleSwatch15 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -306,15 +333,15 @@ textarea {
   background-color: #9ae26f;
 }
 
-.rewrite-from-15 {
+.rewriteFrom15 {
   background-color: #b4ec93;
 }
 
-.expr .appl.rewrite-to-15 {
-  border: 3px solid #317c03;
+.expr .rewriteTo15 {
+  border: 3px solid #44ae04;
 }
 
-.rule-swatch-16 {
+.ruleSwatch16 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -322,15 +349,15 @@ textarea {
   background-color: #e26fbc;
 }
 
-.rewrite-from-16 {
+.rewriteFrom16 {
   background-color: #ec93ce;
 }
 
-.expr .appl.rewrite-to-16 {
-  border: 3px solid #7c0354;
+.expr .rewriteTo16 {
+  border: 3px solid #ae0476;
 }
 
-.rule-swatch-17 {
+.ruleSwatch17 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -338,15 +365,15 @@ textarea {
   background-color: #6fdde2;
 }
 
-.rewrite-from-17 {
+.rewriteFrom17 {
   background-color: #93e8ec;
 }
 
-.expr .appl.rewrite-to-17 {
-  border: 3px solid #03787c;
+.expr .rewriteTo17 {
+  border: 3px solid #04a7ae;
 }
 
-.rule-swatch-18 {
+.ruleSwatch18 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -354,15 +381,15 @@ textarea {
   background-color: #e2c56f;
 }
 
-.rewrite-from-18 {
+.rewriteFrom18 {
   background-color: #ecd593;
 }
 
-.expr .appl.rewrite-to-18 {
-  border: 3px solid #7c5e03;
+.expr .rewriteTo18 {
+  border: 3px solid #ae8304;
 }
 
-.rule-swatch-19 {
+.ruleSwatch19 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -370,15 +397,15 @@ textarea {
   background-color: #a36fe2;
 }
 
-.rewrite-from-19 {
+.rewriteFrom19 {
   background-color: #bb93ec;
 }
 
-.expr .appl.rewrite-to-19 {
-  border: 3px solid #3a037c;
+.expr .rewriteTo19 {
+  border: 3px solid #5204ae;
 }
 
-.rule-swatch-20 {
+.ruleSwatch20 {
   width: 1.2ex;
   height: 1.2ex;
   border: 1px solid gray;
@@ -386,10 +413,10 @@ textarea {
   background-color: #6fe282;
 }
 
-.rewrite-from-20 {
+.rewriteFrom20 {
   background-color: #93eca1;
 }
 
-.expr .appl.rewrite-to-20 {
-  border: 3px solid #037c17;
+.expr .rewriteTo20 {
+  border: 3px solid #04ae20;
 }
