@@ -321,6 +321,10 @@ update msg model =
 
 stepRules : ExecutionData -> Maybe ExecutionData
 stepRules data =
+    let
+        varSuffix =
+            data.history |> List.length |> String.fromInt
+    in
     data.history
         |> List.head
         |> Maybe.andThen
@@ -328,12 +332,13 @@ stepRules data =
                 RuleList <|
                     List.map
                         (\( r, dir ) ->
-                            case dir of
-                                Forward ->
-                                    r
+                            mangleUnboundVars varSuffix <|
+                                case dir of
+                                    Forward ->
+                                        r
 
-                                Reverse ->
-                                    reverseRule r
+                                    Reverse ->
+                                        reverseRule r
                         )
                         data.rules
             )
@@ -497,19 +502,19 @@ executionRulesView =
     rulesViewHelper
         (Just <|
             \ix ->
+                td [] <| List.singleton <|
                 div
                     [ class <|
                         "rule-swatch-"
                             ++ String.fromInt (modBy 20 ix)
                     ]
                     []
-                    |> List.singleton
-                    |> td []
         )
         (Just <|
             \ix ->
+                td [] <| List.singleton <|
                 div
-                    [ class "button-group button-group-sm" ]
+                    [ class "btn-group btn-group-sm" ]
                     [ button
                         [ class "btn btn-dark"
                         , onClick <| ReverseRule ix
