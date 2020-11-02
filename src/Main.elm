@@ -20,7 +20,7 @@ import Html as Html
         , textarea
         , tr
         )
-import Html.Attributes as Attr exposing (class, classList, value)
+import Html.Attributes as Attr exposing (class, classList, title, value)
 import Html.Events exposing (onClick, onInput)
 import List
 import List.Extra as List
@@ -33,6 +33,8 @@ import Platform.Sub as Sub
 import Result
 import Result.Extra as Result
 import Set exposing (Set)
+import Svg
+import Svg.Attributes as SvgAttr
 import Task
 import Tuple
 
@@ -502,25 +504,37 @@ executionRulesView =
     rulesViewHelper
         (Just <|
             \ix ->
-                td [] <| List.singleton <|
-                div
-                    [ class <|
-                        "rule-swatch-"
-                            ++ String.fromInt (modBy 20 ix)
-                    ]
-                    []
+                td [] <|
+                    List.singleton <|
+                        div
+                            [ class <|
+                                "ruleSwatch"
+                                    ++ String.fromInt (modBy 20 ix)
+                            ]
+                            []
         )
         (Just <|
             \ix ->
-                td [] <| List.singleton <|
-                div
-                    [ class "btn-group btn-group-sm" ]
-                    [ button
-                        [ class "btn btn-dark"
-                        , onClick <| ReverseRule ix
-                        ]
-                        [ text "⇄" ]
-                    ]
+                td [] <|
+                    List.singleton <|
+                        div
+                            [ class "ruleControls btn-group btn-group-sm border border-secondary rounded" ]
+                            [ button [ class "btn btn-light px-1"
+                                     , title "Step rule backward"
+                                     ]
+                                  [ featherIcon "skip-back" ]
+                            , button
+                                [ class "btn btn-light px-1"
+                                , title "Reverse rule direction"
+                                , onClick <| ReverseRule ix
+                                ]
+                                [ featherIcon "refresh-ccw" ]
+                            , button
+                                [ class "btn btn-light px-1"
+                                , title "Step rule forward"
+                                ]
+                                [ featherIcon "skip-forward" ]
+                            ]
         )
 
 
@@ -543,13 +557,13 @@ rulesViewHelper rowPrefix rowSuffix rules =
                                     td [ class "pr-1" ]
                                         [ plainExprView pattern ]
                                 , Just <|
-                                    td [ class "arr px-0" ] <|
-                                        case dir of
-                                            Forward ->
-                                                [ text "⇒" ]
-
-                                            Reverse ->
-                                                [ text "⇐" ]
+                                    td []
+                                    [ div [
+                                       classList [ ("arr", True)
+                                                   , ("reverse", dir == Reverse)
+                                                   ]
+                                      
+                                      ] [featherIcon "arrow-right"] ]
                                 , Just <|
                                     td [ class "pl-1" ]
                                         [ plainExprView replacement ]
@@ -615,14 +629,14 @@ rewrittenExprView expr =
                             |> Maybe.map
                                 (modBy 20
                                     >> String.fromInt
-                                    >> (\s -> "rewrite-from-" ++ s)
+                                    >> (\s -> "rewriteFrom" ++ s)
                                     >> class
                                 )
                         , rewrittenTo
                             |> Maybe.map
                                 (modBy 20
                                     >> String.fromInt
-                                    >> (\s -> "rewrite-to-" ++ s)
+                                    >> (\s -> "rewriteTo" ++ s)
                                     >> class
                                 )
                         ]
@@ -712,3 +726,14 @@ historyView hist =
             )
             []
         |> Html.ul [ class "list-unstyled historyView" ]
+
+
+
+-- UTILS / MISC
+
+
+featherIcon : String -> Html msg
+featherIcon name =
+    Svg.svg
+        [ SvgAttr.class "feather" ]
+        [ Svg.use [ SvgAttr.xlinkHref <| "feather-sprite.svg#" ++ name ] [] ]
