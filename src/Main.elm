@@ -20,7 +20,7 @@ import Html as Html
         , textarea
         , tr
         )
-import Html.Attributes as Attr exposing (class, classList, value)
+import Html.Attributes as Attr exposing (class, classList, title, value)
 import Html.Events exposing (onClick, onInput)
 import List
 import List.Extra as List
@@ -33,6 +33,8 @@ import Platform.Sub as Sub
 import Result
 import Result.Extra as Result
 import Set exposing (Set)
+import Svg
+import Svg.Attributes as SvgAttr
 import Task
 import Tuple
 
@@ -78,10 +80,25 @@ type ApplicationState
 
 type alias ExecutionData =
     { initialProgram : PlainExpr
-    , rules : List RewriteRule
+    , rules : List ( RewriteRule, RuleDirection )
     , currentState : PlainExpr
     , history : List RewrittenExpr
     }
+
+
+type RuleDirection
+    = Forward
+    | Reverse
+
+
+flipDirection : RuleDirection -> RuleDirection
+flipDirection d =
+    case d of
+        Forward ->
+            Reverse
+
+        Reverse ->
+            Forward
 
 
 type alias Model =
@@ -114,6 +131,8 @@ type Msg
     | StartEdit
     | FinishEdit
     | StepRules
+    | StepSingleRule RuleDirection Int
+    | ReverseRule Int
     | StartRunning
     | TickRunning
     | StopRunning
@@ -153,7 +172,9 @@ update msg model =
                         | app =
                             Halted
                                 { initialProgram = prog
-                                , rules = rules
+                                , rules =
+                                    rules
+                                        |> List.map (\r -> ( r, Forward ))
                                 , currentState = prog
                                 , history = [ mapExpr (always emptyRewriteData) prog ]
                                 }
@@ -238,6 +259,77 @@ update msg model =
         ( StepRules, _ ) ->
             model
 
+        ( StepSingleRule dir ix, Halted haltedData ) ->
+            let
+                varSuffix =
+                    haltedData.history |> List.length |> String.fromInt
+
+                ruleM =
+                    haltedData.rules
+                        |> List.getAt ix
+                        |> Maybe.map
+                            (case dir of
+                                Forward ->
+                                    Tuple.first
+                                        >> mangleUnboundVars varSuffix
+                                        >> SingleRule ix
+
+                                Reverse ->
+                                    Tuple.first
+                                        >> reverseRule
+                                        >> mangleUnboundVars varSuffix
+                                        >> SingleRule ix
+                            )
+
+                progM =
+                    List.head haltedData.history
+            in
+            case Maybe.andThen2 applyRulesOnce ruleM progM of
+                Just ( taggedOldState, newState ) ->
+                    { model
+                        | app =
+                            Halted
+                                { haltedData
+                                    | currentState = mapExpr (always ()) newState
+                                    , history =
+                                        newState
+                                            :: taggedOldState
+                                            :: List.drop 1 haltedData.history
+                                }
+                    }
+
+                Nothing ->
+                    model
+
+        ( StepSingleRule _ _, _ ) ->
+            model
+
+        ( ReverseRule ix, Halted haltedData ) ->
+            { model
+                | app =
+                    Halted
+                        { haltedData
+                            | rules =
+                                haltedData.rules
+                                    |> List.updateAt ix
+                                        (Tuple.mapSecond flipDirection)
+                        }
+            }
+
+        ( ReverseRule ix, Running stepsLeft runningData ) ->
+            { model
+                | app =
+                    Running stepsLeft
+                        { runningData
+                            | rules =
+                                runningData.rules
+                                    |> List.updateAt ix (Tuple.mapSecond flipDirection)
+                        }
+            }
+
+        ( ReverseRule _, _ ) ->
+            model
+
         ( StartRunning, Halted haltedData ) ->
             { model
                 | app = Running 50 haltedData
@@ -277,9 +369,27 @@ update msg model =
 
 stepRules : ExecutionData -> Maybe ExecutionData
 stepRules data =
+    let
+        varSuffix =
+            data.history |> List.length |> String.fromInt
+    in
     data.history
         |> List.head
-        |> Maybe.andThen (applyRulesOnce data.rules)
+        |> Maybe.andThen
+            (applyRulesOnce <|
+                RuleList <|
+                    List.map
+                        (\( r, dir ) ->
+                            mangleUnboundVars varSuffix <|
+                                case dir of
+                                    Forward ->
+                                        r
+
+                                    Reverse ->
+                                        reverseRule r
+                        )
+                        data.rules
+            )
         |> Maybe.map
             (\( taggedOldState, newState ) ->
                 { data
@@ -318,7 +428,7 @@ view model =
                 [ heading "Rewrite rules"
                 , div [ class "row" ]
                     [ div [ class "col-md" ] [ rulesInput model.session.rulesInput ]
-                    , div [ class "col-md" ] [ rulesView False rules ]
+                    , div [ class "col-md" ] [ editingRulesView rules ]
                     ]
                 , heading "Expression to evaluate"
                 , div [ class "row" ]
@@ -387,7 +497,7 @@ executionView { initialProgram, rules, currentState, history } buttons =
                     [ text "There are no rewrite rules, which may be a bit dull." ]
 
               else
-                rulesView True <| ShowingSuccessfulParse rules
+                executionRulesView rules
             , heading "Initial expression"
             , div [ class "pl-3" ] [ plainExprView initialProgram ]
             , heading "Current expression"
@@ -421,49 +531,99 @@ programInput input =
         []
 
 
-rulesView : Bool -> ParseState (List RewriteRule) -> Html Msg
-rulesView showColors ps =
+editingRulesView : ParseState (List RewriteRule) -> Html Msg
+editingRulesView ps =
+    case ps of
+        InitialParseState ->
+            div [] [ text "Enter some rules!" ]
+
+        ShowingError err ->
+            parseErrorView err
+
+        ShowingSuccessfulParse rules ->
+            rulesViewHelper Nothing Nothing <|
+                List.map (\r -> ( r, Forward )) rules
+
+
+executionRulesView : List ( RewriteRule, RuleDirection ) -> Html Msg
+executionRulesView =
+    rulesViewHelper
+        (Just <|
+            \ix ->
+                td [] <|
+                    List.singleton <|
+                        div
+                            [ class <|
+                                "ruleSwatch"
+                                    ++ String.fromInt (modBy 20 ix)
+                            ]
+                            []
+        )
+        (Just <|
+            \ix ->
+                td [] <|
+                    List.singleton <|
+                        div
+                            [ class "ruleControls btn-group btn-group-sm border border-secondary rounded" ]
+                            [ button
+                                [ class "btn btn-light px-1"
+                                , title "Step rule backward"
+                                , onClick <| StepSingleRule Reverse ix
+                                ]
+                                [ featherIcon "skip-back" ]
+                            , button
+                                [ class "btn btn-light px-1"
+                                , title "Reverse rule direction"
+                                , onClick <| ReverseRule ix
+                                ]
+                                [ featherIcon "refresh-ccw" ]
+                            , button
+                                [ class "btn btn-light px-1"
+                                , title "Step rule forward"
+                                , onClick <| StepSingleRule Forward ix
+                                ]
+                                [ featherIcon "skip-forward" ]
+                            ]
+        )
+
+
+rulesViewHelper :
+    Maybe (Int -> Html Msg)
+    -> Maybe (Int -> Html Msg)
+    -> List ( RewriteRule, RuleDirection )
+    -> Html Msg
+rulesViewHelper rowPrefix rowSuffix rules =
     div [ class "rulesView table-responsive" ]
-        [ case ps of
-            InitialParseState ->
-                text "Enter some rules!"
-
-            ShowingError err ->
-                parseErrorView err
-
-            ShowingSuccessfulParse rules ->
-                table [ class "table table-sm mb-0" ]
-                    [ rules
-                        |> List.indexedMap
-                            (\ix { pattern, replacement } ->
-                                tr [] <|
-                                    Maybe.values
-                                        [ if showColors then
-                                            div
-                                                [ class <|
-                                                    "rule-swatch-"
-                                                        ++ String.fromInt (modBy 20 ix)
+        [ table [ class "table table-sm mb-0" ]
+            [ rules
+                |> List.indexedMap
+                    (\ix ( { pattern, replacement }, dir ) ->
+                        tr [] <|
+                            Maybe.values
+                                [ rowPrefix
+                                    |> Maybe.andMap (Just ix)
+                                , Just <|
+                                    td [ class "pr-1" ]
+                                        [ plainExprView pattern ]
+                                , Just <|
+                                    td []
+                                        [ div
+                                            [ classList
+                                                [ ( "arr", True )
+                                                , ( "reverse", dir == Reverse )
                                                 ]
-                                                []
-                                                |> List.singleton
-                                                |> td []
-                                                |> Just
-
-                                          else
-                                            Nothing
-                                        , Just <|
-                                            td [ class "pattern pr-1" ]
-                                                [ plainExprView pattern ]
-                                        , Just <|
-                                            td [ class "arr px-0" ]
-                                                [ text "⇒" ]
-                                        , Just <|
-                                            td [ class "replacement pl-1" ]
-                                                [ plainExprView replacement ]
+                                            ]
+                                            [ featherIcon "arrow-right" ]
                                         ]
-                            )
-                        |> tbody []
-                    ]
+                                , Just <|
+                                    td [ class "pl-1" ]
+                                        [ plainExprView replacement ]
+                                , rowSuffix
+                                    |> Maybe.andMap (Just ix)
+                                ]
+                    )
+                |> tbody []
+            ]
         ]
 
 
@@ -520,14 +680,14 @@ rewrittenExprView expr =
                             |> Maybe.map
                                 (modBy 20
                                     >> String.fromInt
-                                    >> (\s -> "rewrite-from-" ++ s)
+                                    >> (\s -> "rewriteFrom" ++ s)
                                     >> class
                                 )
                         , rewrittenTo
                             |> Maybe.map
                                 (modBy 20
                                     >> String.fromInt
-                                    >> (\s -> "rewrite-to-" ++ s)
+                                    >> (\s -> "rewriteTo" ++ s)
                                     >> class
                                 )
                         ]
@@ -617,3 +777,14 @@ historyView hist =
             )
             []
         |> Html.ul [ class "list-unstyled historyView" ]
+
+
+
+-- UTILS / MISC
+
+
+featherIcon : String -> Html msg
+featherIcon name =
+    Svg.svg
+        [ SvgAttr.class "feather" ]
+        [ Svg.use [ SvgAttr.xlinkHref <| "feather-sprite.svg#" ++ name ] [] ]

@@ -1,5 +1,15 @@
 $term-hpad: 0.2ch;
 
+.feather {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
 .expr {
     display: flex;
 
@@ -60,6 +70,20 @@ textarea {
     td {
         vertical-align: middle;
 
+        .feather {
+            width: 18px;
+            height: 18px;
+        }
+    }
+
+    .ruleControls {
+        visibility: hidden;
+    }
+
+    tr:hover {
+        .ruleControls {
+            visibility: visible;
+        }
     }
 }
 
@@ -76,12 +100,20 @@ textarea {
     font-size: smaller;
 }
 
+.arr {
+    transition: transform 0.3s ease-in-out;
+
+    &.reverse {
+        transform: rotate(-0.5turn);
+    }
+}
+
 // advance hue by the inv of the golden ratio each step
 $hue-step: 360deg * 0.618033988749895;
 
 @for $i from 0 through 20 {
     $rw-hue: ($i * $hue-step) % 360deg;
-    .rule-swatch-#{$i} {
+    .ruleSwatch#{$i} {
         width: 1.2ex;
         height: 1.2ex;
         border: 1px solid gray;
@@ -89,11 +121,11 @@ $hue-step: 360deg * 0.618033988749895;
         background-color: hsl($rw-hue, 66%, 66%);
     }
 
-    .rewrite-from-#{$i} {
+    .rewriteFrom#{$i} {
         background-color: hsl($rw-hue, 70%, 75%);
     }
 
-    .expr .appl.rewrite-to-#{$i} {
-        border: 3px solid hsl($rw-hue, 95%, 25%);
+    .expr .rewriteTo#{$i} {
+        border: 3px solid hsl($rw-hue, 95%, 35%);
     }
 }

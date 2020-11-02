@@ -6,8 +6,10 @@ module Combinators exposing
     , RewriteData
     , RewriteRule
     , RewrittenExpr
+    , Ruleset(..)
     , applyRulesOnce
     , emptyRewriteData
+    , mangleUnboundVars
     , mapExpr
     , matchExpr
     , parseExpr
@@ -15,6 +17,7 @@ module Combinators exposing
     , parseRuleset
     , pprintExpr
     , renderExpr
+    , reverseRule
     , tryRule
     , updateExpr
     )
@@ -53,6 +56,18 @@ type alias RewriteRule =
     { pattern : PlainExpr
     , replacement : PlainExpr
     }
+
+
+reverseRule : RewriteRule -> RewriteRule
+reverseRule r =
+    { pattern = r.replacement
+    , replacement = r.pattern
+    }
+
+
+type Ruleset
+    = RuleList (List RewriteRule)
+    | SingleRule Int RewriteRule
 
 
 type alias RewriteData =
@@ -213,9 +228,9 @@ rewriteRule =
     Parser.succeed (\x y -> { pattern = x, replacement = y })
         |= expr
         |. Parser.oneOf
-           [ Parser.symbol "="
-           , Parser.symbol "->"
-           ]
+            [ Parser.symbol "="
+            , Parser.symbol "->"
+            ]
         |. whitespace
         |= expr
 
@@ -315,26 +330,78 @@ pprintExpr =
 -- Rewriting
 
 
+mangleUnboundVars : String -> RewriteRule -> RewriteRule
+mangleUnboundVars suffix { pattern, replacement } =
+    let
+        enumerateVars e seen =
+            case e of
+                Term _ _ ->
+                    seen
+
+                FreeVar _ v ->
+                    Set.insert v seen
+
+                Appl _ x y ->
+                    seen
+                        |> enumerateVars x
+                        |> enumerateVars y
+
+        boundVars =
+            enumerateVars pattern Set.empty
+
+        updateReplacement e =
+            case e of
+                Term _ _ ->
+                    e
+
+                FreeVar a v ->
+                    if Set.member v boundVars then
+                        e
+
+                    else
+                        FreeVar a (v ++ suffix)
+
+                Appl a x y ->
+                    Appl a (updateReplacement x) (updateReplacement y)
+    in
+    { pattern = pattern
+    , replacement = updateReplacement replacement
+    }
+
+
 matchExpr : PlainExpr -> Expr a -> Maybe (Dict String PlainExpr)
-matchExpr pattern toMatch =
+matchExpr =
+    matchExprHelper Dict.empty
+
+
+matchExprHelper : Dict String PlainExpr -> PlainExpr -> Expr a -> Maybe (Dict String PlainExpr)
+matchExprHelper bindings pattern toMatch =
     case ( pattern, toMatch ) of
         ( FreeVar () v, val ) ->
-            Just <| Dict.singleton v <| mapExpr (always ()) val
+            case Dict.get v bindings of
+                Just bound ->
+                    if bound == mapExpr (always ()) val then
+                        Just bindings
+
+                    else
+                        Nothing
+
+                Nothing ->
+                    bindings
+                        |> Dict.insert v (mapExpr (always ()) val)
+                        |> Just
 
         ( Term () t1, Term _ t2 ) ->
             if t1 == t2 then
-                Just Dict.empty
+                Just bindings
 
             else
                 Nothing
 
         ( Appl () x1 y1, Appl _ x2 y2 ) ->
-            matchExpr x1 x2
+            matchExprHelper bindings x1 x2
                 |> Maybe.andThen
-                    (\x ->
-                        matchExpr y1 y2
-                            |> Maybe.map (Dict.union x)
-                    )
+                    (\newBindings -> matchExprHelper newBindings y1 y2)
 
         ( _, _ ) ->
             Nothing
@@ -364,18 +431,24 @@ performSubstitutions e bindings =
             Appl () (performSubstitutions x bindings) (performSubstitutions y bindings)
 
 
-applyRulesOnce : List RewriteRule -> RewrittenExpr -> Maybe ( RewrittenExpr, RewrittenExpr )
+applyRulesOnce : Ruleset -> RewrittenExpr -> Maybe ( RewrittenExpr, RewrittenExpr )
 applyRulesOnce rules toRewrite =
-    case
-        rules
-            |> List.indexedMap
-                (\ix rule ->
-                    \_ ->
-                        tryRule rule ix toRewrite
-                            |> Maybe.map (\rw -> ( rw, ix ))
-                )
-            |> Maybe.orListLazy
-    of
+    let
+        runRules =
+            case rules of
+                RuleList ruleList ->
+                    ruleList
+                        |> List.indexedMap
+                            (\ix rule ->
+                                \_ ->
+                                    tryRule rule ix toRewrite
+                                        |> Maybe.map (\rw -> ( rw, ix ))
+                            )
+
+                SingleRule ix rule ->
+                    [ \_ -> tryRule rule ix toRewrite |> Maybe.map (\rw -> ( rw, ix )) ]
+    in
+    case Maybe.orListLazy runRules of
         Just ( rewritten, tag ) ->
             Just
                 ( toRewrite
