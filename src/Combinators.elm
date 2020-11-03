@@ -6,9 +6,11 @@ module Combinators exposing
     , RewriteData
     , RewriteRule
     , RewrittenExpr
-    , Ruleset(..)
+    , Ruleset
     , applyRulesOnce
     , emptyRewriteData
+    , makeRuleList
+    , makeSingletonRule
     , mangleUnboundVars
     , mapExpr
     , matchExpr
@@ -65,9 +67,24 @@ reverseRule r =
     }
 
 
-type Ruleset
-    = RuleList (List RewriteRule)
-    | SingleRule Int RewriteRule
+type alias Ruleset =
+    List
+        { rule : RewriteRule
+        , ix : Int
+        }
+
+
+makeRuleList : List RewriteRule -> Ruleset
+makeRuleList =
+    List.indexedMap <|
+        \ix rule ->
+            { ix = ix, rule = rule }
+
+
+makeSingletonRule : Int -> RewriteRule -> Ruleset
+makeSingletonRule ix rule =
+    List.singleton
+        { ix = ix, rule = rule }
 
 
 type alias RewriteData =
@@ -435,18 +452,13 @@ applyRulesOnce : Ruleset -> RewrittenExpr -> Maybe ( RewrittenExpr, RewrittenExp
 applyRulesOnce rules toRewrite =
     let
         runRules =
-            case rules of
-                RuleList ruleList ->
-                    ruleList
-                        |> List.indexedMap
-                            (\ix rule ->
-                                \_ ->
-                                    tryRule rule ix toRewrite
-                                        |> Maybe.map (\rw -> ( rw, ix ))
-                            )
-
-                SingleRule ix rule ->
-                    [ \_ -> tryRule rule ix toRewrite |> Maybe.map (\rw -> ( rw, ix )) ]
+            rules
+                |> List.map
+                    (\{ ix, rule } ->
+                        \_ ->
+                            tryRule rule ix toRewrite
+                                |> Maybe.map (\rw -> ( rw, ix ))
+                    )
     in
     case Maybe.orListLazy runRules of
         Just ( rewritten, tag ) ->

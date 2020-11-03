@@ -342,7 +342,7 @@ assertApplyRulesOnce name rules input expect =
             Maybe.andThen2 applyRulesOnce
                 (parseRuleset rules
                     |> Result.toMaybe
-                    |> Maybe.map RuleList
+                    |> Maybe.map makeRuleList
                 )
                 (parsedInput
                     |> Maybe.map (mapExpr (always emptyRewriteData))
@@ -369,7 +369,7 @@ assertApplyRulesOnceRewriteData name rules input expectFrom expectTo =
                 parsedRules =
                     parseRuleset rules
                         |> Result.toMaybe
-                        |> Maybe.map RuleList
+                        |> Maybe.map makeRuleList
             in
             Maybe.andThen2 applyRulesOnce
                 parsedRules

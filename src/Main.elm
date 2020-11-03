@@ -272,13 +272,13 @@ update msg model =
                                 Forward ->
                                     Tuple.first
                                         >> mangleUnboundVars varSuffix
-                                        >> SingleRule ix
+                                        >> makeSingletonRule ix
 
                                 Reverse ->
                                     Tuple.first
                                         >> reverseRule
                                         >> mangleUnboundVars varSuffix
-                                        >> SingleRule ix
+                                        >> makeSingletonRule ix
                             )
 
                 progM =
@@ -377,7 +377,7 @@ stepRules data =
         |> List.head
         |> Maybe.andThen
             (applyRulesOnce <|
-                RuleList <|
+                makeRuleList <|
                     List.map
                         (\( r, dir ) ->
                             mangleUnboundVars varSuffix <|
