@@ -106,6 +106,7 @@ stepSearch test ctx =
                         let
                             newExpr =
                                 ctx.loc
+                                    |> mapExprZipper (always emptyRewriteData)
                                     |> set rewritten
                                     |> root
 

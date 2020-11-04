@@ -4,6 +4,7 @@ module Combinators.Zipper exposing
     , edit
     , exprZipper
     , left
+    , mapExprZipper
     , next
     , read
     , right
@@ -33,6 +34,27 @@ exprZipper e =
     { focus = e
     , context = Root
     }
+
+
+mapExprZipper : (a -> b) -> ExprZip a -> ExprZip b
+mapExprZipper f {focus, context} =
+   let
+       helper z =
+           case z of
+               Root ->
+                   Root
+
+               ApplZL a e parent ->
+                    ApplZL (f a) (mapExpr f e) (helper parent)
+
+               ApplZR a e parent ->
+                    ApplZR (f a) (mapExpr f e) (helper parent)
+
+    in
+        { focus = mapExpr f focus
+        , context = helper context
+        }
+
 
 
 read : ExprZip a -> Expr a

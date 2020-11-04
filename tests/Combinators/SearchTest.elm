@@ -63,6 +63,48 @@ suite =
             "ABC"
             "ABC"
             (Just ["ABC"])
+        , test "Rewrite history matches step runner" <| \_ ->
+            let
+                rules =
+                    parseRuleset "Axy=xyy.Ix=x."
+                        |> Result.map makeRuleList
+                        |> Result.toMaybe
+
+                input =
+                    parseExpr "AIB"
+                        |> Result.toMaybe
+
+                pattern =
+                    parseExpr "BB"
+                        |> Result.toMaybe
+
+                searchResult =
+                    Maybe.andThen3 searchForMatch
+                        rules
+                        pattern
+                        (input |> Maybe.map (mapExpr <| always emptyRewriteData))
+
+                stepRules = Maybe.andThen
+                            (\(head, tail) ->
+                                 Maybe.andThen2 applyRulesOnce
+                                 rules
+                                 (Just head)
+                                 |> Maybe.map
+                                    (\(from, to) ->
+                                         (to, from :: tail)
+                                    )
+                            )
+
+                stepResult =
+                    input
+                        |> Maybe.map (\i -> (mapExpr (always emptyRewriteData) i, []))
+                        |> stepRules
+                        |> stepRules
+                        |> Maybe.map (\ (head, tail) -> head :: tail)
+            in
+                searchResult
+                    |> Expect.equal stepResult
+
         ]
 
 
