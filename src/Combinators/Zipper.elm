@@ -8,6 +8,7 @@ module Combinators.Zipper exposing
     , read
     , right
     , root
+    , set
     , up
     )
 
@@ -37,6 +38,11 @@ exprZipper e =
 read : ExprZip a -> Expr a
 read loc =
     loc.focus
+
+
+set : Expr a -> ExprZip a -> ExprZip a
+set val loc =
+   { loc | focus = val }
 
 
 edit : (Expr a -> Expr a) -> ExprZip a -> ExprZip a

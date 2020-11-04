@@ -20,7 +20,8 @@ module Combinators exposing
     , pprintExpr
     , renderExpr
     , reverseRule
-    , tryRule
+    , tryRuleAnnotated
+    , tryRulePlain
     , updateExpr
     )
 
@@ -424,8 +425,14 @@ matchExprHelper bindings pattern toMatch =
             Nothing
 
 
-tryRule : RewriteRule -> Int -> Expr b -> Maybe RewrittenExpr
-tryRule { pattern, replacement } tag e =
+tryRulePlain : RewriteRule -> Expr b -> Maybe PlainExpr
+tryRulePlain { pattern, replacement } e =
+    matchExpr pattern e
+        |> Maybe.map (performSubstitutions replacement)
+
+
+tryRuleAnnotated : RewriteRule -> Int -> Expr b -> Maybe RewrittenExpr
+tryRuleAnnotated { pattern, replacement } tag e =
     matchExpr pattern e
         |> Maybe.map
             (performSubstitutions replacement
@@ -456,7 +463,7 @@ applyRulesOnce rules toRewrite =
                 |> List.map
                     (\{ ix, rule } ->
                         \_ ->
-                            tryRule rule ix toRewrite
+                            tryRuleAnnotated rule ix toRewrite
                                 |> Maybe.map (\rw -> ( rw, ix ))
                     )
     in

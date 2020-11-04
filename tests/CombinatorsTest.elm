@@ -310,25 +310,36 @@ assertMatchExpr name pattern toMatch expect =
 
 assertTryRule : String -> String -> String -> Maybe String -> Test
 assertTryRule name rule input expect =
-    test name <|
-        \_ ->
-            Maybe.andThen3 tryRule
-                (parseRewriteRule rule |> Result.toMaybe)
-                (Just 42)
-                (parseExpr input |> Result.toMaybe)
-                |> Expect.equal
-                    (expect
-                        |> Maybe.andThen (parseExpr >> Result.toMaybe)
-                        |> Maybe.map
-                            (mapExpr (always emptyRewriteData)
-                                >> updateExpr
-                                    (always
-                                        { rewrittenFrom = Just 42
-                                        , rewrittenTo = Nothing
-                                        }
-                                    )
-                            )
-                    )
+    describe name
+        [ test "tryRuleAnnotated" <|
+            \_ ->
+                Maybe.andThen3 tryRuleAnnotated
+                    (parseRewriteRule rule |> Result.toMaybe)
+                    (Just 42)
+                    (parseExpr input |> Result.toMaybe)
+                    |> Expect.equal
+                        (expect
+                            |> Maybe.andThen (parseExpr >> Result.toMaybe)
+                            |> Maybe.map
+                                (mapExpr (always emptyRewriteData)
+                                    >> updateExpr
+                                        (always
+                                            { rewrittenFrom = Just 42
+                                            , rewrittenTo = Nothing
+                                            }
+                                        )
+                                )
+                        )
+        , test "tryRulePlain" <|
+            \_ ->
+                Maybe.andThen2 tryRulePlain
+                    (parseRewriteRule rule |> Result.toMaybe)
+                    (parseExpr input |> Result.toMaybe)
+                    |> Expect.equal
+                        (expect
+                            |> Maybe.andThen (parseExpr >> Result.toMaybe)
+                        )
+        ]
 
 
 assertApplyRulesOnce : String -> String -> String -> Maybe String -> Test
