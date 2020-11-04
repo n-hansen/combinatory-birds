@@ -58,6 +58,11 @@ suite =
             "[Impossible]"
             "A"
             Nothing
+        , assertSearchForMatch "Idempotency"
+            "Kxy=x.x=Kxy."
+            "ABC"
+            "ABC"
+            (Just ["ABC"])
         ]
 
 
@@ -107,7 +112,7 @@ assertSearchForMatch name rulesS patternS inputS expectS =
                 Maybe.andThen3 searchForMatch
                     rules
                     pattern
-                    input
+                    (input |> Maybe.map (mapExpr <| always emptyRewriteData))
                     |> Maybe.map (List.map (mapExpr (always ())))
                     |> Expect.equal expect
         ]

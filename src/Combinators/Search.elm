@@ -199,20 +199,28 @@ stepSearchAdvanceCursor ctx =
             Searching
 
 
-searchForMatch : Ruleset -> PlainExpr -> Expr a -> Maybe (List RewrittenExpr)
+searchForMatch : Ruleset -> PlainExpr -> RewrittenExpr -> Maybe (List RewrittenExpr)
 searchForMatch rules pattern startingPoint =
-    searchForMatchHelper
-        (matchExpr pattern >> Maybe.isJust)
-        { rules = rules
-        , loc = startingPoint |> mapExpr (always emptyRewriteData) |> exprZipper
-        , path = []
-        , queue = []
-        , nextQueue = []
-        , seen = Set.empty
-        , nodesProcessed = 0
-        , exprProcessed = 0
-        , depth = 0
-        }
+    matchExpr pattern startingPoint
+        |> Maybe.map
+            (\_ ->
+                [ startingPoint ]
+            )
+        |> Maybe.orElseLazy
+            (\_ ->
+                searchForMatchHelper
+                    (matchExpr pattern >> Maybe.isJust)
+                    { rules = rules
+                    , loc = exprZipper startingPoint
+                    , path = []
+                    , queue = []
+                    , nextQueue = []
+                    , seen = Set.empty
+                    , nodesProcessed = 0
+                    , exprProcessed = 0
+                    , depth = 0
+                    }
+            )
 
 
 searchForMatchHelper : (RewrittenExpr -> Bool) -> SearchContext -> Maybe (List RewrittenExpr)

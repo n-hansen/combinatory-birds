@@ -404,10 +404,13 @@ update msg model =
 
         ( StartSearch goal, Halted haltedData ) ->
             case
-                searchForMatch
-                    (buildSearchRules haltedData.rules)
-                    goal
-                    haltedData.currentState
+                haltedData.history
+                    |> List.head
+                    |> Maybe.andThen
+                        (searchForMatch
+                            (buildSearchRules haltedData.rules)
+                            goal
+                        )
             of
                 Just (e :: es) ->
                     { model
