@@ -1,4 +1,4 @@
-module Combinators.Search exposing (..)
+module Combinators.Search exposing (searchForMatch)
 
 import Combinators exposing (..)
 import Combinators.Zipper exposing (..)

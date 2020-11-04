@@ -3,6 +3,8 @@ module Main exposing (main)
 import Browser
 import Browser.Events exposing (onAnimationFrame)
 import Combinators exposing (..)
+import Combinators.Search exposing (searchForMatch)
+import Either exposing (Either(..))
 import Html as Html
     exposing
         ( Attribute
@@ -30,6 +32,7 @@ import Parser exposing (Problem(..))
 import Platform exposing (Program)
 import Platform.Cmd as Cmd exposing (Cmd)
 import Platform.Sub as Sub
+import Process
 import Result
 import Result.Extra as Result
 import Set exposing (Set)
@@ -47,7 +50,7 @@ main : Program () Model Msg
 main =
     Browser.element
         { init = always ( init, Cmd.none )
-        , update = \msg mdl -> ( update msg mdl, Cmd.none )
+        , update = update
         , view = view
         , subscriptions = subscriptions
         }
@@ -66,6 +69,7 @@ type ParseState a
 type alias SessionData =
     { programInput : String
     , rulesInput : String
+    , searchGoalInput : String
     }
 
 
@@ -73,6 +77,7 @@ type ApplicationState
     = Editing
         { program : ParseState PlainExpr
         , rules : ParseState (List RewriteRule)
+        , searchGoal : ParseState (Either RewriteRule PlainExpr)
         }
     | Halted ExecutionData
     | Running Int ExecutionData
@@ -81,6 +86,7 @@ type ApplicationState
 type alias ExecutionData =
     { initialProgram : PlainExpr
     , rules : List ( RewriteRule, RuleDirection )
+    , searchGoal : Maybe PlainExpr
     , currentState : PlainExpr
     , history : List RewrittenExpr
     }
@@ -112,11 +118,13 @@ init =
     { session =
         { programInput = ""
         , rulesInput = ""
+        , searchGoalInput = ""
         }
     , app =
         Editing
             { program = InitialParseState
             , rules = InitialParseState
+            , searchGoal = InitialParseState
             }
     }
 
@@ -128,6 +136,7 @@ init =
 type Msg
     = ChangeProgramInput String
     | ChangeRulesInput String
+    | ChangeSearchGoalInput String
     | StartEdit
     | FinishEdit
     | StepRules
@@ -136,13 +145,14 @@ type Msg
     | StartRunning
     | TickRunning
     | StopRunning
+    | StartSearch PlainExpr
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model.app ) of
         ( StartEdit, Editing _ ) ->
-            model
+            noCmd model
 
         ( StartEdit, _ ) ->
             { model
@@ -158,8 +168,14 @@ update msg model =
                                 |> Result.unpack
                                     ShowingError
                                     ShowingSuccessfulParse
+                        , searchGoal =
+                            parseSearchGoal model.session.searchGoalInput
+                                |> Result.unpack
+                                    ShowingError
+                                    ShowingSuccessfulParse
                         }
             }
+                |> noCmd
 
         ( FinishEdit, Editing editData ) ->
             case
@@ -177,8 +193,10 @@ update msg model =
                                         |> List.map (\r -> ( r, Forward ))
                                 , currentState = prog
                                 , history = [ mapExpr (always emptyRewriteData) prog ]
+                                , searchGoal = realizeSearchGoal prog model.session.searchGoalInput
                                 }
                     }
+                        |> noCmd
 
                 ( prog, rules ) ->
                     { model
@@ -192,11 +210,21 @@ update msg model =
                                     rules
                                         |> Result.error
                                         |> Maybe.unwrap editData.rules ShowingError
+                                , searchGoal =
+                                    if model.session.searchGoalInput == "" then
+                                        InitialParseState
+
+                                    else
+                                        parseSearchGoal model.session.searchGoalInput
+                                            |> Result.unpack
+                                                ShowingError
+                                                ShowingSuccessfulParse
                                 }
                     }
+                        |> noCmd
 
         ( FinishEdit, _ ) ->
-            model
+            noCmd model
 
         ( ChangeProgramInput newContent, Editing editData ) ->
             let
@@ -215,12 +243,13 @@ update msg model =
                                     | program = ShowingSuccessfulParse expr
                                 }
                     }
+                        |> noCmd
 
                 Err err ->
-                    nextModel
+                    noCmd nextModel
 
         ( ChangeProgramInput _, _ ) ->
-            model
+            noCmd model
 
         ( ChangeRulesInput newContent, Editing editData ) ->
             let
@@ -239,25 +268,56 @@ update msg model =
                                     | rules = ShowingSuccessfulParse rules
                                 }
                     }
+                        |> noCmd
 
                 Err err ->
-                    nextModel
+                    noCmd nextModel
 
         ( ChangeRulesInput _, _ ) ->
-            model
+            noCmd model
+
+        ( ChangeSearchGoalInput newContent, Editing editData ) ->
+            let
+                sesh =
+                    model.session
+
+                nextModel =
+                    { model | session = { sesh | searchGoalInput = newContent } }
+
+                nextGoal =
+                    if newContent == "" then
+                        InitialParseState
+
+                    else
+                        case parseSearchGoal newContent of
+                            Ok goal ->
+                                ShowingSuccessfulParse goal
+
+                            Err err ->
+                                editData.searchGoal
+            in
+            { nextModel
+                | app =
+                    Editing { editData | searchGoal = nextGoal }
+            }
+                |> noCmd
+
+        ( ChangeSearchGoalInput _, _ ) ->
+            noCmd model
 
         ( StepRules, Halted haltedData ) ->
             case stepRules haltedData of
                 Just newData ->
-                    { model
-                        | app = Halted newData
-                    }
+                    noCmd
+                        { model
+                            | app = Halted newData
+                        }
 
                 Nothing ->
-                    model
+                    noCmd model
 
         ( StepRules, _ ) ->
-            model
+            noCmd model
 
         ( StepSingleRule dir ix, Halted haltedData ) ->
             let
@@ -297,12 +357,13 @@ update msg model =
                                             :: List.drop 1 haltedData.history
                                 }
                     }
+                        |> noCmd
 
                 Nothing ->
-                    model
+                    noCmd model
 
         ( StepSingleRule _ _, _ ) ->
-            model
+            noCmd model
 
         ( ReverseRule ix, Halted haltedData ) ->
             { model
@@ -315,6 +376,7 @@ update msg model =
                                         (Tuple.mapSecond flipDirection)
                         }
             }
+                |> noCmd
 
         ( ReverseRule ix, Running stepsLeft runningData ) ->
             { model
@@ -326,25 +388,55 @@ update msg model =
                                     |> List.updateAt ix (Tuple.mapSecond flipDirection)
                         }
             }
+                |> noCmd
 
         ( ReverseRule _, _ ) ->
-            model
+            noCmd model
 
         ( StartRunning, Halted haltedData ) ->
             { model
                 | app = Running 50 haltedData
             }
+                |> noCmd
 
         ( StartRunning, _ ) ->
-            model
+            noCmd model
+
+        ( StartSearch goal, Halted haltedData ) ->
+            case
+                searchForMatch
+                    (buildSearchRules haltedData.rules)
+                    goal
+                    haltedData.currentState
+            of
+                Just (e :: es) ->
+                    { model
+                        | app =
+                            Halted
+                                { haltedData
+                                    | currentState =
+                                        mapExpr (always ()) e
+                                    , history =
+                                        (e :: es)
+                                            ++ List.drop 1 haltedData.history
+                                }
+                    }
+                        |> noCmd
+
+                _ ->
+                    noCmd model
+
+        ( StartSearch _, _ ) ->
+            noCmd model
 
         ( StopRunning, Running _ runningData ) ->
             { model
                 | app = Halted runningData
             }
+                |> noCmd
 
         ( StopRunning, _ ) ->
-            model
+            noCmd model
 
         ( TickRunning, Running stepsLeft runningData ) ->
             case stepRules runningData of
@@ -357,14 +449,21 @@ update msg model =
                             else
                                 Halted newData
                     }
+                        |> noCmd
 
                 Nothing ->
                     { model
                         | app = Halted runningData
                     }
+                        |> noCmd
 
         ( TickRunning, _ ) ->
-            model
+            noCmd model
+
+
+noCmd : Model -> ( Model, Cmd Msg )
+noCmd m =
+    ( m, Cmd.none )
 
 
 stepRules : ExecutionData -> Maybe ExecutionData
@@ -402,6 +501,42 @@ stepRules data =
             )
 
 
+parseSearchGoal : String -> Result ParseError (Either RewriteRule PlainExpr)
+parseSearchGoal input =
+    if String.contains "=" input || String.contains "->" input then
+        parseRewriteRule input
+            |> Result.map Left
+
+    else
+        parseExpr input
+            |> Result.map Right
+
+
+realizeSearchGoal : PlainExpr -> String -> Maybe PlainExpr
+realizeSearchGoal toMatch patternInput =
+    parseSearchGoal patternInput
+        |> Result.toMaybe
+        |> Maybe.andThen
+            (Either.unpack
+                (\rule ->
+                    tryRulePlain rule toMatch
+                )
+                Just
+            )
+
+
+buildSearchRules : List ( RewriteRule, a ) -> Ruleset
+buildSearchRules rules =
+    rules
+        |> List.indexedMap
+            (\ix ( rule, _ ) ->
+                [ { ix = ix, rule = rule }
+                , { ix = ix, rule = reverseRule rule }
+                ]
+            )
+        |> List.concat
+
+
 
 -- SUBSCRIPTIONS
 
@@ -424,21 +559,35 @@ view : Model -> Html Msg
 view model =
     div [ class "container" ] <|
         case model.app of
-            Editing { program, rules } ->
+            Editing { program, rules, searchGoal } ->
                 [ heading "Rewrite rules"
                 , div [ class "row" ]
                     [ div [ class "col-md" ] [ rulesInput model.session.rulesInput ]
                     , div [ class "col-md" ] [ editingRulesView rules ]
                     ]
+                , heading "Search goal"
+                , div [ class "row" ]
+                    [ div [ class "col-md" ]
+                        [ div [ class "d-flex" ] [ goalInput model.session.searchGoalInput ] ]
+                    , div [ class "col-md" ]
+                        [ if model.session.searchGoalInput == "" then
+                            div [] []
+
+                          else
+                            searchGoalView searchGoal
+                        ]
+                    ]
                 , heading "Expression to evaluate"
                 , div [ class "row" ]
-                    [ div [ class "col-md d-flex" ]
-                        [ programInput model.session.programInput
-                        , button
-                            [ class "btn btn-primary ml-1"
-                            , onClick FinishEdit
+                    [ div [ class "col-md" ]
+                        [ div [ class "d-flex flex-row" ]
+                            [ programInput model.session.programInput
+                            , button
+                                [ class "btn btn-primary ml-1"
+                                , onClick FinishEdit
+                                ]
+                                [ text "Go" ]
                             ]
-                            [ text "Go" ]
                         ]
                     , div [ class "col-md" ] [ programView program ]
                     ]
@@ -446,7 +595,7 @@ view model =
 
             Halted haltedData ->
                 [ executionView haltedData <|
-                    div [ class "buttonRow mt-3" ]
+                    div [ class "buttonRow mt-3" ] <|
                         [ button
                             [ class "btn btn-light border border-secondary"
                             , onClick StartEdit
@@ -454,15 +603,27 @@ view model =
                             [ text "Edit" ]
                         , button
                             [ class "btn btn-primary"
-                            , onClick StepRules
-                            ]
-                            [ text "Step" ]
-                        , button
-                            [ class "btn btn-primary"
                             , onClick StartRunning
                             ]
                             [ text "Run" ]
+                        , button
+                            [ class "btn btn-primary"
+                            , onClick StepRules
+                            ]
+                            [ text "Step" ]
                         ]
+                            ++ (case haltedData.searchGoal of
+                                    Nothing ->
+                                        []
+
+                                    Just goal ->
+                                        [ button
+                                            [ class "btn btn-primary"
+                                            , onClick (StartSearch goal)
+                                            ]
+                                            [ text "Search" ]
+                                        ]
+                               )
                 ]
 
             Running _ runningData ->
@@ -488,9 +649,9 @@ heading =
 
 
 executionView : ExecutionData -> Html Msg -> Html Msg
-executionView { initialProgram, rules, currentState, history } buttons =
+executionView { initialProgram, rules, currentState, history, searchGoal } buttons =
     div [ class "row" ] <|
-        [ div [ class "col-md" ]
+        [ div [ class "col-md" ] <|
             [ heading "Rewrite rules"
             , if List.isEmpty rules then
                 div [ class "font-italic" ]
@@ -500,10 +661,20 @@ executionView { initialProgram, rules, currentState, history } buttons =
                 executionRulesView rules
             , heading "Initial expression"
             , div [ class "pl-3" ] [ plainExprView initialProgram ]
-            , heading "Current expression"
-            , div [ class "pl-3" ] [ plainExprView currentState ]
-            , buttons
             ]
+                ++ (case searchGoal of
+                        Nothing ->
+                            []
+
+                        Just expr ->
+                            [ heading "Search Goal"
+                            , div [ class "pl-3" ] [ plainExprView expr ]
+                            ]
+                   )
+                ++ [ heading "Current expression"
+                   , div [ class "pl-3" ] [ plainExprView currentState ]
+                   , buttons
+                   ]
         , div [ class "col-md" ]
             [ heading "History"
             , historyView history
@@ -518,6 +689,17 @@ rulesInput input =
         , onInput ChangeRulesInput
         ]
         [ text input ]
+
+
+goalInput : String -> Html Msg
+goalInput input =
+    Html.input
+        [ Attr.type_ "text"
+        , onInput ChangeSearchGoalInput
+        , value input
+        , class "flex-grow-1"
+        ]
+        []
 
 
 programInput : String -> Html Msg
@@ -639,6 +821,30 @@ programView ps =
 
             ShowingError err ->
                 [ parseErrorView err ]
+
+
+searchGoalView : ParseState (Either RewriteRule PlainExpr) -> Html Msg
+searchGoalView ps =
+    case ps of
+        InitialParseState ->
+            div [] []
+
+        ShowingSuccessfulParse p ->
+            case p of
+                Left { pattern, replacement } ->
+                    div [ class "d-flex flex-row align-items-center" ]
+                        [ div [ class "pr-1" ]
+                            [ plainExprView pattern ]
+                        , div [ class "arr" ] [ featherIcon "arrow-right" ]
+                        , td [ class "pl-1" ]
+                            [ plainExprView replacement ]
+                        ]
+
+                Right expr ->
+                    plainExprView expr
+
+        ShowingError err ->
+            parseErrorView err
 
 
 flatTreeRenderer : (a -> List (Attribute Msg)) -> Renderer a (Html Msg)
