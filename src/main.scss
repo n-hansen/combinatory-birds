@@ -104,11 +104,6 @@ textarea {
 
     td {
         vertical-align: middle;
-
-        .feather {
-            width: 18px;
-            height: 18px;
-        }
     }
 
     .ruleControls {
@@ -140,6 +135,11 @@ textarea {
 
     &.reverse {
         transform: rotate(-0.5turn);
+    }
+
+    .feather {
+        width: 18px;
+        height: 18px;
     }
 }
 
