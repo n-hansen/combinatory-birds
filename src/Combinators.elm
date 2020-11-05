@@ -20,6 +20,7 @@ module Combinators exposing
     , pprintExpr
     , renderExpr
     , reverseRule
+    , termSyms
     , tryRuleAnnotated
     , tryRulePlain
     , updateExpr

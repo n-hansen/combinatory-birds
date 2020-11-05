@@ -14,27 +14,62 @@ $term-hpad: 0.2ch;
     display: flex;
 
     .appl {
-        margin: 1px;
-        border: 1px solid black;
         display: flex;
         flex-direction: row;
-        align-items: center;
     }
 
-    .term, .freeVar {
-        padding: $term-hpad;
-
-        &:first-child {
-            margin-left: $term-hpad;
+    .longName {
+        &::before {
+            content: '[';
+            font-style: normal;
         }
-
-        &:last-child {
-            margin-right: $term-hpad;
+        &::after {
+            content: ']';
+            font-style: normal;
         }
     }
 
-    .freeVar {
-        font-style: italic;
+    &.borderedTree {
+        .appl {
+            margin: 1px;
+            border: 1px solid black;
+            align-items: center;
+        }
+
+        .term, .freeVar {
+            padding: $term-hpad;
+
+            &:first-child {
+                margin-left: $term-hpad;
+            }
+
+            &:last-child {
+                margin-right: $term-hpad;
+            }
+        }
+
+        .freeVar {
+            font-style: italic;
+        }
+
+    }
+
+    &.symbolString {
+        padding-top: 1px;
+        padding-bottom: 1px;
+
+        .appl {
+            align-items: baseline;
+        }
+
+        .appl.needsParens {
+            &::before {
+                content: '(';
+            }
+            &::after {
+                content: ')';
+            }
+        }
     }
 }
 
@@ -121,11 +156,19 @@ $hue-step: 360deg * 0.618033988749895;
         background-color: hsl($rw-hue, 66%, 66%);
     }
 
-    .rewriteFrom#{$i} {
+    .expr.borderedTree .rewriteFrom#{$i} {
         background-color: hsl($rw-hue, 70%, 75%);
     }
 
-    .expr .rewriteTo#{$i} {
+    .expr.borderedTree .rewriteTo#{$i} {
         border: 3px solid hsl($rw-hue, 95%, 35%);
+    }
+
+    .expr.symbolString .rewriteFrom#{$i} {
+        border-top: 1px solid hsl($rw-hue, 90%, 45%);
+    }
+
+    .expr.symbolString .rewriteTo#{$i} {
+        border-bottom: 1px solid hsl($rw-hue, 90%, 45%);
     }
 }
