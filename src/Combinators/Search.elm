@@ -106,6 +106,7 @@ stepSearch test ctx =
                         let
                             newExpr =
                                 ctx.loc
+                                    |> mapExprZipper (always emptyRewriteData)
                                     |> set rewritten
                                     |> root
 
@@ -194,6 +195,16 @@ stepSearchAdvanceCursor ctx =
                                 , nodesProcessed = ctx.nodesProcessed + 1
                                 , exprProcessed = ctx.exprProcessed + 1
                                 , depth = ctx.depth + 1
+                                , rules =
+                                    List.map
+                                        (\r ->
+                                            { r
+                                                | rule =
+                                                    mangleUnboundVars "'"
+                                                        r.rule
+                                            }
+                                        )
+                                        ctx.rules
                             }
             )
             Searching

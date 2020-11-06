@@ -855,19 +855,45 @@ flatTreeRenderer attrs =
     { term =
         \a t ->
             div
-                (class "term" :: attrs a)
+                (classList
+                    [ ( "term", True )
+                    , ( "longName", isLongIdentifier t )
+                    ]
+                    :: attrs a
+                )
                 [ text t ]
     , freeVar =
         \a v ->
             div
-                (class "freeVar" :: attrs a)
+                (classList
+                    [ ( "freeVar", True )
+                    , ( "longName", isLongIdentifier v )
+                    ]
+                    :: attrs a
+                )
                 [ text v ]
     , appl =
-        \_ a x y ->
+        \p a x y ->
             div
-                (class "appl" :: attrs a)
+                (classList
+                    [ ( "appl", True )
+                    , ( "needsParens", p )
+                    ]
+                    :: attrs a
+                )
                 [ x, y ]
     }
+
+
+isLongIdentifier : String -> Bool
+isLongIdentifier str =
+    String.length str
+        > 1
+        && (String.toList str
+                |> List.filter (\c -> not <| Set.member c termSyms)
+                |> List.length
+                |> (\x -> x > 1)
+           )
 
 
 plainExprView : Expr a -> Html Msg
@@ -875,7 +901,9 @@ plainExprView expr =
     expr
         |> renderExpr (flatTreeRenderer (always []))
         |> List.singleton
-        |> div [ class "expr" ]
+        |> div [ class "expr"
+               , class "symbolString"
+               ]
 
 
 rewrittenExprView : RewrittenExpr -> Html Msg
@@ -902,7 +930,9 @@ rewrittenExprView expr =
                         ]
             )
         |> List.singleton
-        |> div [ class "expr" ]
+        |> div [ class "expr"
+               , class "symbolString"
+               ]
 
 
 parseErrorView : ParseError -> Html Msg

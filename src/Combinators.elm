@@ -20,6 +20,7 @@ module Combinators exposing
     , pprintExpr
     , renderExpr
     , reverseRule
+    , termSyms
     , tryRuleAnnotated
     , tryRulePlain
     , updateExpr
@@ -255,7 +256,17 @@ rewriteRule =
 
 parseRewriteRule : String -> Result ParseError RewriteRule
 parseRewriteRule input =
-    Parser.run (rewriteRule |. Parser.end) input
+    Parser.run
+        (rewriteRule
+            |. whitespace
+            |. Parser.oneOf
+                [ Parser.symbol "."
+                , Parser.symbol ";"
+                , Parser.succeed ()
+                ]
+            |. Parser.end
+        )
+        input
         |> Result.mapError (\e -> ( input, e ))
 
 
