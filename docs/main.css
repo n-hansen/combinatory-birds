@@ -12,23 +12,46 @@
   display: flex;
 }
 .expr .appl {
-  margin: 1px;
-  border: 1px solid black;
   display: flex;
   flex-direction: row;
+}
+.expr .longName::before {
+  content: "[";
+  font-style: normal;
+}
+.expr .longName::after {
+  content: "]";
+  font-style: normal;
+}
+.expr.borderedTree .appl {
+  margin: 1px;
+  border: 1px solid black;
   align-items: center;
 }
-.expr .term, .expr .freeVar {
+.expr.borderedTree .term, .expr.borderedTree .freeVar {
   padding: 0.2ch;
 }
-.expr .term:first-child, .expr .freeVar:first-child {
+.expr.borderedTree .term:first-child, .expr.borderedTree .freeVar:first-child {
   margin-left: 0.2ch;
 }
-.expr .term:last-child, .expr .freeVar:last-child {
+.expr.borderedTree .term:last-child, .expr.borderedTree .freeVar:last-child {
   margin-right: 0.2ch;
 }
-.expr .freeVar {
+.expr.borderedTree .freeVar {
   font-style: italic;
+}
+.expr.symbolString {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.expr.symbolString .appl {
+  align-items: baseline;
+}
+.expr.symbolString .appl.needsParens::before {
+  content: "(";
+}
+.expr.symbolString .appl.needsParens::after {
+  content: ")";
 }
 
 .parseError .msg {
@@ -55,10 +78,6 @@ textarea {
 .rulesView table td {
   vertical-align: middle;
 }
-.rulesView table td .feather {
-  width: 18px;
-  height: 18px;
-}
 .rulesView table .ruleControls {
   visibility: hidden;
 }
@@ -84,6 +103,10 @@ textarea {
 .arr.reverse {
   transform: rotate(-0.5turn);
 }
+.arr .feather {
+  width: 18px;
+  height: 18px;
+}
 
 .ruleSwatch0 {
   width: 1.2ex;
@@ -93,12 +116,20 @@ textarea {
   background-color: #e26f6f;
 }
 
-.rewriteFrom0 {
+.expr.borderedTree .rewriteFrom0 {
   background-color: #ec9393;
 }
 
-.expr .rewriteTo0 {
+.expr.borderedTree .rewriteTo0 {
   border: 3px solid #ae0404;
+}
+
+.expr.symbolString .rewriteFrom0 {
+  border-top: 1px solid #da0b0b;
+}
+
+.expr.symbolString .rewriteTo0 {
+  border-bottom: 1px solid #da0b0b;
 }
 
 .ruleSwatch1 {
@@ -109,12 +140,20 @@ textarea {
   background-color: #6f90e2;
 }
 
-.rewriteFrom1 {
+.expr.borderedTree .rewriteFrom1 {
   background-color: #93adec;
 }
 
-.expr .rewriteTo1 {
+.expr.borderedTree .rewriteTo1 {
   border: 3px solid #0436ae;
+}
+
+.expr.symbolString .rewriteFrom1 {
+  border-top: 1px solid #0b48da;
+}
+
+.expr.symbolString .rewriteTo1 {
+  border-bottom: 1px solid #0b48da;
 }
 
 .ruleSwatch2 {
@@ -125,12 +164,20 @@ textarea {
   background-color: #b2e26f;
 }
 
-.rewriteFrom2 {
+.expr.borderedTree .rewriteFrom2 {
   background-color: #c7ec93;
 }
 
-.expr .rewriteTo2 {
+.expr.borderedTree .rewriteTo2 {
   border: 3px solid #67ae04;
+}
+
+.expr.symbolString .rewriteFrom2 {
+  border-top: 1px solid #84da0b;
+}
+
+.expr.symbolString .rewriteTo2 {
+  border-bottom: 1px solid #84da0b;
 }
 
 .ruleSwatch3 {
@@ -141,12 +188,20 @@ textarea {
   background-color: #e26fd3;
 }
 
-.rewriteFrom3 {
+.expr.borderedTree .rewriteFrom3 {
   background-color: #ec93e1;
 }
 
-.expr .rewriteTo3 {
+.expr.borderedTree .rewriteTo3 {
   border: 3px solid #ae0499;
+}
+
+.expr.symbolString .rewriteFrom3 {
+  border-top: 1px solid #da0bc0;
+}
+
+.expr.symbolString .rewriteTo3 {
+  border-bottom: 1px solid #da0bc0;
 }
 
 .ruleSwatch4 {
@@ -157,12 +212,20 @@ textarea {
   background-color: #6fe2ce;
 }
 
-.rewriteFrom4 {
+.expr.borderedTree .rewriteFrom4 {
   background-color: #93ecdd;
 }
 
-.expr .rewriteTo4 {
+.expr.borderedTree .rewriteTo4 {
   border: 3px solid #04ae92;
+}
+
+.expr.symbolString .rewriteFrom4 {
+  border-top: 1px solid #0bdab7;
+}
+
+.expr.symbolString .rewriteTo4 {
+  border-bottom: 1px solid #0bdab7;
 }
 
 .ruleSwatch5 {
@@ -173,12 +236,20 @@ textarea {
   background-color: #e2ad6f;
 }
 
-.rewriteFrom5 {
+.expr.borderedTree .rewriteFrom5 {
   background-color: #ecc393;
 }
 
-.expr .rewriteTo5 {
+.expr.borderedTree .rewriteTo5 {
   border: 3px solid #ae6004;
+}
+
+.expr.symbolString .rewriteFrom5 {
+  border-top: 1px solid #da7b0b;
+}
+
+.expr.symbolString .rewriteTo5 {
+  border-bottom: 1px solid #da7b0b;
 }
 
 .ruleSwatch6 {
@@ -189,12 +260,20 @@ textarea {
   background-color: #8c6fe2;
 }
 
-.rewriteFrom6 {
+.expr.borderedTree .rewriteFrom6 {
   background-color: #a993ec;
 }
 
-.expr .rewriteTo6 {
+.expr.borderedTree .rewriteTo6 {
   border: 3px solid #2f04ae;
+}
+
+.expr.symbolString .rewriteFrom6 {
+  border-top: 1px solid #3f0bda;
+}
+
+.expr.symbolString .rewriteTo6 {
+  border-bottom: 1px solid #3f0bda;
 }
 
 .ruleSwatch7 {
@@ -205,12 +284,20 @@ textarea {
   background-color: #74e26f;
 }
 
-.rewriteFrom7 {
+.expr.borderedTree .rewriteFrom7 {
   background-color: #96ec93;
 }
 
-.expr .rewriteTo7 {
+.expr.borderedTree .rewriteTo7 {
   border: 3px solid #0cae04;
+}
+
+.expr.symbolString .rewriteFrom7 {
+  border-top: 1px solid #14da0b;
+}
+
+.expr.symbolString .rewriteTo7 {
+  border-bottom: 1px solid #14da0b;
 }
 
 .ruleSwatch8 {
@@ -221,12 +308,20 @@ textarea {
   background-color: #e26f95;
 }
 
-.rewriteFrom8 {
+.expr.borderedTree .rewriteFrom8 {
   background-color: #ec93b0;
 }
 
-.expr .rewriteTo8 {
+.expr.borderedTree .rewriteTo8 {
   border: 3px solid #ae043d;
+}
+
+.expr.symbolString .rewriteFrom8 {
+  border-top: 1px solid #da0b51;
+}
+
+.expr.symbolString .rewriteTo8 {
+  border-bottom: 1px solid #da0b51;
 }
 
 .ruleSwatch9 {
@@ -237,12 +332,20 @@ textarea {
   background-color: #6fb7e2;
 }
 
-.rewriteFrom9 {
+.expr.borderedTree .rewriteFrom9 {
   background-color: #93cbec;
 }
 
-.expr .rewriteTo9 {
+.expr.borderedTree .rewriteTo9 {
   border: 3px solid #046fae;
+}
+
+.expr.symbolString .rewriteFrom9 {
+  border-top: 1px solid #0b8dda;
+}
+
+.expr.symbolString .rewriteTo9 {
+  border-bottom: 1px solid #0b8dda;
 }
 
 .ruleSwatch10 {
@@ -253,12 +356,20 @@ textarea {
   background-color: #d8e26f;
 }
 
-.rewriteFrom10 {
+.expr.borderedTree .rewriteFrom10 {
   background-color: #e5ec93;
 }
 
-.expr .rewriteTo10 {
+.expr.borderedTree .rewriteTo10 {
   border: 3px solid #a0ae04;
+}
+
+.expr.symbolString .rewriteFrom10 {
+  border-top: 1px solid #c9da0b;
+}
+
+.expr.symbolString .rewriteTo10 {
+  border-bottom: 1px solid #c9da0b;
 }
 
 .ruleSwatch11 {
@@ -269,12 +380,20 @@ textarea {
   background-color: #ca6fe2;
 }
 
-.rewriteFrom11 {
+.expr.borderedTree .rewriteFrom11 {
   background-color: #d993ec;
 }
 
-.expr .rewriteTo11 {
+.expr.borderedTree .rewriteTo11 {
   border: 3px solid #8a04ae;
+}
+
+.expr.symbolString .rewriteFrom11 {
+  border-top: 1px solid #af0bda;
+}
+
+.expr.symbolString .rewriteTo11 {
+  border-bottom: 1px solid #af0bda;
 }
 
 .ruleSwatch12 {
@@ -285,12 +404,20 @@ textarea {
   background-color: #6fe2a8;
 }
 
-.rewriteFrom12 {
+.expr.borderedTree .rewriteFrom12 {
   background-color: #93ecbf;
 }
 
-.expr .rewriteTo12 {
+.expr.borderedTree .rewriteTo12 {
   border: 3px solid #04ae59;
+}
+
+.expr.symbolString .rewriteFrom12 {
+  border-top: 1px solid #0bda72;
+}
+
+.expr.symbolString .rewriteTo12 {
+  border-bottom: 1px solid #0bda72;
 }
 
 .ruleSwatch13 {
@@ -301,12 +428,20 @@ textarea {
   background-color: #e2876f;
 }
 
-.rewriteFrom13 {
+.expr.borderedTree .rewriteFrom13 {
   background-color: #eca593;
 }
 
-.expr .rewriteTo13 {
+.expr.borderedTree .rewriteTo13 {
   border: 3px solid #ae2804;
+}
+
+.expr.symbolString .rewriteFrom13 {
+  border-top: 1px solid #da360b;
+}
+
+.expr.symbolString .rewriteTo13 {
+  border-bottom: 1px solid #da360b;
 }
 
 .ruleSwatch14 {
@@ -317,12 +452,20 @@ textarea {
   background-color: #6f79e2;
 }
 
-.rewriteFrom14 {
+.expr.borderedTree .rewriteFrom14 {
   background-color: #939aec;
 }
 
-.expr .rewriteTo14 {
+.expr.borderedTree .rewriteTo14 {
   border: 3px solid #0413ae;
+}
+
+.expr.symbolString .rewriteFrom14 {
+  border-top: 1px solid #0b1dda;
+}
+
+.expr.symbolString .rewriteTo14 {
+  border-bottom: 1px solid #0b1dda;
 }
 
 .ruleSwatch15 {
@@ -333,12 +476,20 @@ textarea {
   background-color: #9ae26f;
 }
 
-.rewriteFrom15 {
+.expr.borderedTree .rewriteFrom15 {
   background-color: #b4ec93;
 }
 
-.expr .rewriteTo15 {
+.expr.borderedTree .rewriteTo15 {
   border: 3px solid #44ae04;
+}
+
+.expr.symbolString .rewriteFrom15 {
+  border-top: 1px solid #59da0b;
+}
+
+.expr.symbolString .rewriteTo15 {
+  border-bottom: 1px solid #59da0b;
 }
 
 .ruleSwatch16 {
@@ -349,12 +500,20 @@ textarea {
   background-color: #e26fbc;
 }
 
-.rewriteFrom16 {
+.expr.borderedTree .rewriteFrom16 {
   background-color: #ec93ce;
 }
 
-.expr .rewriteTo16 {
+.expr.borderedTree .rewriteTo16 {
   border: 3px solid #ae0476;
+}
+
+.expr.symbolString .rewriteFrom16 {
+  border-top: 1px solid #da0b96;
+}
+
+.expr.symbolString .rewriteTo16 {
+  border-bottom: 1px solid #da0b96;
 }
 
 .ruleSwatch17 {
@@ -365,12 +524,20 @@ textarea {
   background-color: #6fdde2;
 }
 
-.rewriteFrom17 {
+.expr.borderedTree .rewriteFrom17 {
   background-color: #93e8ec;
 }
 
-.expr .rewriteTo17 {
+.expr.borderedTree .rewriteTo17 {
   border: 3px solid #04a7ae;
+}
+
+.expr.symbolString .rewriteFrom17 {
+  border-top: 1px solid #0bd2da;
+}
+
+.expr.symbolString .rewriteTo17 {
+  border-bottom: 1px solid #0bd2da;
 }
 
 .ruleSwatch18 {
@@ -381,12 +548,20 @@ textarea {
   background-color: #e2c56f;
 }
 
-.rewriteFrom18 {
+.expr.borderedTree .rewriteFrom18 {
   background-color: #ecd593;
 }
 
-.expr .rewriteTo18 {
+.expr.borderedTree .rewriteTo18 {
   border: 3px solid #ae8304;
+}
+
+.expr.symbolString .rewriteFrom18 {
+  border-top: 1px solid #daa60b;
+}
+
+.expr.symbolString .rewriteTo18 {
+  border-bottom: 1px solid #daa60b;
 }
 
 .ruleSwatch19 {
@@ -397,12 +572,20 @@ textarea {
   background-color: #a36fe2;
 }
 
-.rewriteFrom19 {
+.expr.borderedTree .rewriteFrom19 {
   background-color: #bb93ec;
 }
 
-.expr .rewriteTo19 {
+.expr.borderedTree .rewriteTo19 {
   border: 3px solid #5204ae;
+}
+
+.expr.symbolString .rewriteFrom19 {
+  border-top: 1px solid #6a0bda;
+}
+
+.expr.symbolString .rewriteTo19 {
+  border-bottom: 1px solid #6a0bda;
 }
 
 .ruleSwatch20 {
@@ -413,10 +596,18 @@ textarea {
   background-color: #6fe282;
 }
 
-.rewriteFrom20 {
+.expr.borderedTree .rewriteFrom20 {
   background-color: #93eca1;
 }
 
-.expr .rewriteTo20 {
+.expr.borderedTree .rewriteTo20 {
   border: 3px solid #04ae20;
+}
+
+.expr.symbolString .rewriteFrom20 {
+  border-top: 1px solid #0bda2d;
+}
+
+.expr.symbolString .rewriteTo20 {
+  border-bottom: 1px solid #0bda2d;
 }
