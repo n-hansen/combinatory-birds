@@ -44,6 +44,7 @@ import Set exposing (Set)
 import Svg
 import Svg.Attributes as SvgAttr
 import Task
+import TreeViz
 import Tuple
 
 
@@ -74,6 +75,7 @@ type ParseState a
 type DisplayStyle
     = SymbolString
     | BorderedTree
+    | PrettyTree
 
 
 type alias SessionData =
@@ -643,6 +645,7 @@ settingsView model =
                 [ heading "Display Style"
                 , [ SymbolString
                   , BorderedTree
+                  , PrettyTree
                   ]
                     |> List.map
                         (\style ->
@@ -993,6 +996,20 @@ flatTreeRenderer attrs =
     }
 
 
+prettyTreeRenderer : Renderer a TreeViz.Tree
+prettyTreeRenderer =
+    { term =
+        \_ t ->
+            TreeViz.Leaf t
+    , freeVar =
+        \_ v ->
+            TreeViz.Leaf v
+    , appl =
+        \_ _ x y ->
+            TreeViz.Node x y
+    }
+
+
 isLongIdentifier : String -> Bool
 isLongIdentifier str =
     String.length str
@@ -1006,51 +1023,69 @@ isLongIdentifier str =
 
 plainExprView : DisplayStyle -> Expr a -> Html Msg
 plainExprView style expr =
-    expr
-        |> renderExpr (flatTreeRenderer (always []))
-        |> List.singleton
-        |> div
-            [ class "expr"
-            , if style == SymbolString then
-                class "symbolString"
+    if style == PrettyTree then
+        expr
+            |> renderExpr prettyTreeRenderer
+            |> TreeViz.layoutTree
+            |> TreeViz.renderSvg TreeViz.defaultRenderConfig
+            |> List.singleton
+            |> div [ class "prettyTree" ]
 
-              else
-                class "borderedTree"
-            ]
+    else
+        expr
+            |> renderExpr (flatTreeRenderer (always []))
+            |> List.singleton
+            |> div
+                [ class "expr"
+                , if style == SymbolString then
+                    class "symbolString"
+
+                  else
+                    class "borderedTree"
+                ]
 
 
 rewrittenExprView : DisplayStyle -> RewrittenExpr -> Html Msg
 rewrittenExprView style expr =
-    expr
-        |> renderExpr
-            (flatTreeRenderer <|
-                \{ rewrittenFrom, rewrittenTo } ->
-                    Maybe.values
-                        [ rewrittenFrom
-                            |> Maybe.map
-                                (modBy 20
-                                    >> String.fromInt
-                                    >> (\s -> "rewriteFrom" ++ s)
-                                    >> class
-                                )
-                        , rewrittenTo
-                            |> Maybe.map
-                                (modBy 20
-                                    >> String.fromInt
-                                    >> (\s -> "rewriteTo" ++ s)
-                                    >> class
-                                )
-                        ]
-            )
-        |> List.singleton
-        |> div
-            [ class "expr"
-            , if style == SymbolString then
-                class "symbolString"
+    if style == PrettyTree then
+        expr
+            |> renderExpr prettyTreeRenderer
+            |> TreeViz.layoutTree
+            |> TreeViz.renderSvg TreeViz.defaultRenderConfig
+            |> List.singleton
+            |> div [ class "prettyTree" ]
 
-              else
-                class "borderedTree"
-            ]
+    else
+        expr
+            |> renderExpr
+                (flatTreeRenderer <|
+                    \{ rewrittenFrom, rewrittenTo } ->
+                        Maybe.values
+                            [ rewrittenFrom
+                                |> Maybe.map
+                                    (modBy 20
+                                        >> String.fromInt
+                                        >> (\s -> "rewriteFrom" ++ s)
+                                        >> class
+                                    )
+                            , rewrittenTo
+                                |> Maybe.map
+                                    (modBy 20
+                                        >> String.fromInt
+                                        >> (\s -> "rewriteTo" ++ s)
+                                        >> class
+                                    )
+                            ]
+                )
+            |> List.singleton
+            |> div
+                [ class "expr"
+                , if style == SymbolString then
+                    class "symbolString"
+
+                  else
+                    class "borderedTree"
+                ]
 
 
 parseErrorView : ParseError -> Html Msg

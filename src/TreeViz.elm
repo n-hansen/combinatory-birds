@@ -301,23 +301,25 @@ type alias RenderConfig =
     , nodeRadius : Float
     , leafHeight : Float
     , leafWidth : Float
+    , leafOffset : Float
     }
 
 
 defaultRenderConfig : RenderConfig
 defaultRenderConfig =
-    { xScale = 30
-    , yScale = 20
+    { xScale = 35
+    , yScale = 30
     , viewportPad = 15
-    , viewportScale = 0.8
+    , viewportScale = 0.7
     , nodeRadius = 4
-    , leafHeight = 15
-    , leafWidth = 15
+    , leafHeight = 25
+    , leafWidth = 20
+    , leafOffset = 5
     }
 
 
 renderSvg : RenderConfig -> TreeLayout -> Html msg
-renderSvg { xScale, yScale, viewportPad, viewportScale, nodeRadius, leafHeight, leafWidth } { nodes, edges } =
+renderSvg { xScale, yScale, viewportPad, viewportScale, nodeRadius, leafHeight, leafWidth, leafOffset } { nodes, edges } =
     let
         ( renderedNodes, { minX, maxX, minY, maxY } ) =
             nodes
@@ -365,7 +367,7 @@ renderSvg { xScale, yScale, viewportPad, viewportScale, nodeRadius, leafHeight, 
                                                 []
                                             , text_
                                                 [ Attr.x << String.fromFloat <| x * xScale
-                                                , Attr.y << String.fromFloat <| y * yScale
+                                                , Attr.y << String.fromFloat <| y * yScale + leafOffset
                                                 ]
                                                 [ text lbl ]
                                             ]
