@@ -73,6 +73,24 @@ $term-hpad: 0.2ch;
     }
 }
 
+.prettyTree svg {
+    .leaf {
+        rect {
+            fill: white;
+            stroke: black;
+            stroke-width: 1;
+        }
+
+        text {
+            text-anchor: middle;
+        }
+    }
+
+    .edge {
+        stroke: black;
+    }
+}
+
 $error-color: #d61002;
 
 .parseError {

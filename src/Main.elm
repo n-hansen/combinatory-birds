@@ -11,8 +11,12 @@ import Html as Html
         , Html
         , button
         , div
+        , h1
+        , h5
         , h6
         , input
+        , li
+        , nav
         , pre
         , span
         , table
@@ -21,6 +25,7 @@ import Html as Html
         , text
         , textarea
         , tr
+        , ul
         )
 import Html.Attributes as Attr exposing (class, classList, title, value)
 import Html.Events exposing (onClick, onInput)
@@ -39,6 +44,7 @@ import Set exposing (Set)
 import Svg
 import Svg.Attributes as SvgAttr
 import Task
+import TreeViz
 import Tuple
 
 
@@ -66,10 +72,18 @@ type ParseState a
     | InitialParseState
 
 
+type DisplayStyle
+    = SymbolString
+    | BorderedTree
+    | PrettyTree
+
+
 type alias SessionData =
     { programInput : String
     , rulesInput : String
     , searchGoalInput : String
+    , settingsOpen : Bool
+    , displayStyle : DisplayStyle
     }
 
 
@@ -119,6 +133,8 @@ init =
         { programInput = ""
         , rulesInput = ""
         , searchGoalInput = ""
+        , settingsOpen = False
+        , displayStyle = SymbolString
         }
     , app =
         Editing
@@ -137,6 +153,8 @@ type Msg
     = ChangeProgramInput String
     | ChangeRulesInput String
     | ChangeSearchGoalInput String
+    | ToggleSettings
+    | SetDisplayStyle DisplayStyle
     | StartEdit
     | FinishEdit
     | StepRules
@@ -151,6 +169,20 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model.app ) of
+        ( ToggleSettings, _ ) ->
+            let
+                sesh =
+                    model.session
+            in
+            noCmd { model | session = { sesh | settingsOpen = not sesh.settingsOpen } }
+
+        ( SetDisplayStyle style, _ ) ->
+            let
+                sesh =
+                    model.session
+            in
+            noCmd { model | session = { sesh | displayStyle = style } }
+
         ( StartEdit, Editing _ ) ->
             noCmd model
 
@@ -560,13 +592,91 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div [ class "container" ] <|
+    div []
+        [ nav []
+            [ ul [ class "nav" ]
+                [ li [ class "nav-item" ] [ h1 [ class "px-2" ] [ text "Combinatory Birds" ] ]
+                , li [ class "nav-item ml-auto" ]
+                    [ button
+                        [ class "btn btn-light border my-2 mr-3 ml-auto align-self-end"
+                        , onClick ToggleSettings
+                        ]
+                        [ featherIcon "settings" ]
+                    ]
+                ]
+            ]
+        , div [ class "container-fluid" ] <|
+            List.singleton <|
+                div [ class "row" ] <|
+                    Maybe.values
+                        [ Just <|
+                            div [ class "col-md order-2" ] <|
+                                List.singleton <|
+                                    appView model
+                        , if not model.session.settingsOpen then
+                            Nothing
+
+                          else
+                            Just <|
+                                div [ class "col-md-auto order-first order-md-3" ]
+                                    [ settingsView model ]
+                        ]
+        ]
+
+
+settingsView : Model -> Html Msg
+settingsView model =
+    let
+        displayExample =
+            Appl ()
+                (Appl ()
+                    (Term () "A")
+                    (FreeVar () "x")
+                )
+                (Appl ()
+                    (Term () "B")
+                    (FreeVar () "y")
+                )
+    in
+    div [ class "card" ]
+        [ h5 [ class "card-header" ] [ text "Settings" ]
+        , ul [ class "list-group list-group-flush" ]
+            [ li [ class "list-group-item" ]
+                [ heading "Display Style"
+                , [ SymbolString
+                  , BorderedTree
+                  , PrettyTree
+                  ]
+                    |> List.map
+                        (\style ->
+                            div [ class "col px-0" ]
+                                [ button
+                                    [ class "btn"
+                                    , classList
+                                        [ ( "border border-success"
+                                          , style == model.session.displayStyle
+                                          )
+                                        ]
+                                    , onClick <| SetDisplayStyle style
+                                    ]
+                                    [ plainExprView style displayExample ]
+                                ]
+                        )
+                    |> div [ class "row align-items-center px-3" ]
+                ]
+            ]
+        ]
+
+
+appView : Model -> Html Msg
+appView model =
+    div [ class "d-flex flex-column" ] <|
         case model.app of
             Editing { program, rules, searchGoal } ->
                 [ heading "Rewrite rules"
                 , div [ class "row" ]
                     [ div [ class "col-md" ] [ rulesInput model.session.rulesInput ]
-                    , div [ class "col-md" ] [ editingRulesView rules ]
+                    , div [ class "col-md" ] [ editingRulesView model.session.displayStyle rules ]
                     ]
                 , heading "Search goal"
                 , div [ class "row" ]
@@ -577,7 +687,7 @@ view model =
                             div [] []
 
                           else
-                            searchGoalView searchGoal
+                            searchGoalView model.session.displayStyle searchGoal
                         ]
                     ]
                 , heading "Expression to evaluate"
@@ -592,12 +702,12 @@ view model =
                                 [ text "Go" ]
                             ]
                         ]
-                    , div [ class "col-md" ] [ programView program ]
+                    , div [ class "col-md" ] [ programView model.session.displayStyle program ]
                     ]
                 ]
 
             Halted haltedData ->
-                [ executionView haltedData <|
+                [ executionView model.session haltedData <|
                     div [ class "buttonRow mt-3" ] <|
                         [ button
                             [ class "btn btn-light border border-secondary"
@@ -630,7 +740,7 @@ view model =
                 ]
 
             Running _ runningData ->
-                [ executionView runningData <|
+                [ executionView model.session runningData <|
                     div [ class "buttonRow mt-3" ]
                         [ button
                             [ class "btn btn-light border border-secondary"
@@ -651,8 +761,8 @@ heading =
     text >> List.singleton >> h6 [ class "mt-2" ]
 
 
-executionView : ExecutionData -> Html Msg -> Html Msg
-executionView { initialProgram, rules, currentState, history, searchGoal } buttons =
+executionView : SessionData -> ExecutionData -> Html Msg -> Html Msg
+executionView { displayStyle } { initialProgram, rules, currentState, history, searchGoal } buttons =
     div [ class "row" ] <|
         [ div [ class "col-md" ] <|
             [ heading "Rewrite rules"
@@ -661,9 +771,9 @@ executionView { initialProgram, rules, currentState, history, searchGoal } butto
                     [ text "There are no rewrite rules, which may be a bit dull." ]
 
               else
-                executionRulesView rules
+                executionRulesView displayStyle rules
             , heading "Initial expression"
-            , div [ class "pl-3" ] [ plainExprView initialProgram ]
+            , div [ class "pl-3" ] [ plainExprView displayStyle initialProgram ]
             ]
                 ++ (case searchGoal of
                         Nothing ->
@@ -671,16 +781,16 @@ executionView { initialProgram, rules, currentState, history, searchGoal } butto
 
                         Just expr ->
                             [ heading "Search Goal"
-                            , div [ class "pl-3" ] [ plainExprView expr ]
+                            , div [ class "pl-3" ] [ plainExprView displayStyle expr ]
                             ]
                    )
                 ++ [ heading "Current expression"
-                   , div [ class "pl-3" ] [ plainExprView currentState ]
+                   , div [ class "pl-3" ] [ plainExprView displayStyle currentState ]
                    , buttons
                    ]
         , div [ class "col-md" ]
             [ heading "History"
-            , historyView history
+            , historyView displayStyle history
             ]
         ]
 
@@ -716,8 +826,8 @@ programInput input =
         []
 
 
-editingRulesView : ParseState (List RewriteRule) -> Html Msg
-editingRulesView ps =
+editingRulesView : DisplayStyle -> ParseState (List RewriteRule) -> Html Msg
+editingRulesView displayStyle ps =
     case ps of
         InitialParseState ->
             div [] [ text "Enter some rules!" ]
@@ -726,13 +836,13 @@ editingRulesView ps =
             parseErrorView err
 
         ShowingSuccessfulParse rules ->
-            rulesViewHelper Nothing Nothing <|
+            rulesViewHelper displayStyle Nothing Nothing <|
                 List.map (\r -> ( r, Forward )) rules
 
 
-executionRulesView : List ( RewriteRule, RuleDirection ) -> Html Msg
-executionRulesView =
-    rulesViewHelper
+executionRulesView : DisplayStyle -> List ( RewriteRule, RuleDirection ) -> Html Msg
+executionRulesView displayStyle =
+    rulesViewHelper displayStyle
         (Just <|
             \ix ->
                 td [] <|
@@ -773,11 +883,12 @@ executionRulesView =
 
 
 rulesViewHelper :
-    Maybe (Int -> Html Msg)
+    DisplayStyle
+    -> Maybe (Int -> Html Msg)
     -> Maybe (Int -> Html Msg)
     -> List ( RewriteRule, RuleDirection )
     -> Html Msg
-rulesViewHelper rowPrefix rowSuffix rules =
+rulesViewHelper displayStyle rowPrefix rowSuffix rules =
     div [ class "rulesView table-responsive" ]
         [ table [ class "table table-sm mb-0" ]
             [ rules
@@ -789,7 +900,7 @@ rulesViewHelper rowPrefix rowSuffix rules =
                                     |> Maybe.andMap (Just ix)
                                 , Just <|
                                     td [ class "pr-1" ]
-                                        [ plainExprView pattern ]
+                                        [ plainExprView displayStyle pattern ]
                                 , Just <|
                                     td []
                                         [ div
@@ -802,7 +913,7 @@ rulesViewHelper rowPrefix rowSuffix rules =
                                         ]
                                 , Just <|
                                     td [ class "pl-1" ]
-                                        [ plainExprView replacement ]
+                                        [ plainExprView displayStyle replacement ]
                                 , rowSuffix
                                     |> Maybe.andMap (Just ix)
                                 ]
@@ -812,22 +923,22 @@ rulesViewHelper rowPrefix rowSuffix rules =
         ]
 
 
-programView : ParseState PlainExpr -> Html Msg
-programView ps =
+programView : DisplayStyle -> ParseState PlainExpr -> Html Msg
+programView displayStyle ps =
     div [] <|
         case ps of
             InitialParseState ->
                 []
 
             ShowingSuccessfulParse expr ->
-                [ plainExprView expr ]
+                [ plainExprView displayStyle expr ]
 
             ShowingError err ->
                 [ parseErrorView err ]
 
 
-searchGoalView : ParseState (Either RewriteRule PlainExpr) -> Html Msg
-searchGoalView ps =
+searchGoalView : DisplayStyle -> ParseState (Either RewriteRule PlainExpr) -> Html Msg
+searchGoalView displayStyle ps =
     case ps of
         InitialParseState ->
             div [] []
@@ -837,14 +948,14 @@ searchGoalView ps =
                 Left { pattern, replacement } ->
                     div [ class "d-flex flex-row align-items-center" ]
                         [ div [ class "pr-1" ]
-                            [ plainExprView pattern ]
+                            [ plainExprView displayStyle pattern ]
                         , div [ class "arr" ] [ featherIcon "arrow-right" ]
                         , td [ class "pl-1" ]
-                            [ plainExprView replacement ]
+                            [ plainExprView displayStyle replacement ]
                         ]
 
                 Right expr ->
-                    plainExprView expr
+                    plainExprView displayStyle expr
 
         ShowingError err ->
             parseErrorView err
@@ -885,6 +996,20 @@ flatTreeRenderer attrs =
     }
 
 
+prettyTreeRenderer : Renderer a TreeViz.Tree
+prettyTreeRenderer =
+    { term =
+        \_ t ->
+            TreeViz.Leaf t
+    , freeVar =
+        \_ v ->
+            TreeViz.Leaf v
+    , appl =
+        \_ _ x y ->
+            TreeViz.Node x y
+    }
+
+
 isLongIdentifier : String -> Bool
 isLongIdentifier str =
     String.length str
@@ -896,43 +1021,71 @@ isLongIdentifier str =
            )
 
 
-plainExprView : Expr a -> Html Msg
-plainExprView expr =
-    expr
-        |> renderExpr (flatTreeRenderer (always []))
-        |> List.singleton
-        |> div [ class "expr"
-               , class "symbolString"
-               ]
+plainExprView : DisplayStyle -> Expr a -> Html Msg
+plainExprView style expr =
+    if style == PrettyTree then
+        expr
+            |> renderExpr prettyTreeRenderer
+            |> TreeViz.layoutTree
+            |> TreeViz.renderSvg TreeViz.defaultRenderConfig
+            |> List.singleton
+            |> div [ class "prettyTree" ]
+
+    else
+        expr
+            |> renderExpr (flatTreeRenderer (always []))
+            |> List.singleton
+            |> div
+                [ class "expr"
+                , if style == SymbolString then
+                    class "symbolString"
+
+                  else
+                    class "borderedTree"
+                ]
 
 
-rewrittenExprView : RewrittenExpr -> Html Msg
-rewrittenExprView expr =
-    expr
-        |> renderExpr
-            (flatTreeRenderer <|
-                \{ rewrittenFrom, rewrittenTo } ->
-                    Maybe.values
-                        [ rewrittenFrom
-                            |> Maybe.map
-                                (modBy 20
-                                    >> String.fromInt
-                                    >> (\s -> "rewriteFrom" ++ s)
-                                    >> class
-                                )
-                        , rewrittenTo
-                            |> Maybe.map
-                                (modBy 20
-                                    >> String.fromInt
-                                    >> (\s -> "rewriteTo" ++ s)
-                                    >> class
-                                )
-                        ]
-            )
-        |> List.singleton
-        |> div [ class "expr"
-               , class "symbolString"
-               ]
+rewrittenExprView : DisplayStyle -> RewrittenExpr -> Html Msg
+rewrittenExprView style expr =
+    if style == PrettyTree then
+        expr
+            |> renderExpr prettyTreeRenderer
+            |> TreeViz.layoutTree
+            |> TreeViz.renderSvg TreeViz.defaultRenderConfig
+            |> List.singleton
+            |> div [ class "prettyTree" ]
+
+    else
+        expr
+            |> renderExpr
+                (flatTreeRenderer <|
+                    \{ rewrittenFrom, rewrittenTo } ->
+                        Maybe.values
+                            [ rewrittenFrom
+                                |> Maybe.map
+                                    (modBy 20
+                                        >> String.fromInt
+                                        >> (\s -> "rewriteFrom" ++ s)
+                                        >> class
+                                    )
+                            , rewrittenTo
+                                |> Maybe.map
+                                    (modBy 20
+                                        >> String.fromInt
+                                        >> (\s -> "rewriteTo" ++ s)
+                                        >> class
+                                    )
+                            ]
+                )
+            |> List.singleton
+            |> div
+                [ class "expr"
+                , if style == SymbolString then
+                    class "symbolString"
+
+                  else
+                    class "borderedTree"
+                ]
 
 
 parseErrorView : ParseError -> Html Msg
@@ -1007,12 +1160,12 @@ parseErrorView ( input, err ) =
             |> div [ class "parseError" ]
 
 
-historyView : List RewrittenExpr -> Html Msg
-historyView hist =
+historyView : DisplayStyle -> List RewrittenExpr -> Html Msg
+historyView displayStyle hist =
     hist
         |> List.foldl
             (\expr rendered ->
-                rewrittenExprView expr :: rendered
+                rewrittenExprView displayStyle expr :: rendered
             )
             []
         |> Html.ul [ class "list-unstyled historyView" ]
