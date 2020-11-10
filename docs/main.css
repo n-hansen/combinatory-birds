@@ -54,6 +54,18 @@
   content: ")";
 }
 
+.prettyTree svg .leaf rect {
+  fill: white;
+  stroke: black;
+  stroke-width: 1;
+}
+.prettyTree svg .leaf text {
+  text-anchor: middle;
+}
+.prettyTree svg .edge {
+  stroke: black;
+}
+
 .parseError .msg {
   color: #d61002;
   text-decoration: underline;
