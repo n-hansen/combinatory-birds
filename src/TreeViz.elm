@@ -213,7 +213,7 @@ annotateTreeHelper ctx t =
                             in
                             rctx.threads
                                 |> Dict.insert (atId toThread)
-                                    ( lnext, offset + roffset - loffset )
+                                    ( lnext, roffset - 2 * offset - loffset )
 
                         Just (Right ( rnext, roffset )) ->
                             let
@@ -222,7 +222,7 @@ annotateTreeHelper ctx t =
                             in
                             rctx.threads
                                 |> Dict.insert (atId toThread)
-                                    ( rnext, offset + loffset - roffset )
+                                    ( rnext, loffset - 2 * offset - roffset )
             in
             ( ANode { offset = offset, id = rctx.nextId } la ra
             , { rctx
