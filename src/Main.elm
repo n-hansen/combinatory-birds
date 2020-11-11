@@ -159,6 +159,8 @@ type Msg
     | ChangeSearchGoalInput String
     | ToggleSettings
     | SetDisplayStyle DisplayStyle
+    | SetSearchDepth Int
+    | SetSearchMaxExprLength Int
     | StartEdit
     | FinishEdit
     | StepRules
@@ -186,6 +188,20 @@ update msg model =
                     model.session
             in
             noCmd { model | session = { sesh | displayStyle = style } }
+
+        ( SetSearchDepth n, _ ) ->
+            let
+                sesh =
+                    model.session
+            in
+            noCmd { model | session = { sesh | searchDepth = n } }
+
+        ( SetSearchMaxExprLength n, _ ) ->
+            let
+                sesh =
+                    model.session
+            in
+            noCmd { model | session = { sesh | searchMaxExprLength = n } }
 
         ( StartEdit, Editing _ ) ->
             noCmd model
@@ -669,6 +685,38 @@ settingsView model =
                                 ]
                         )
                     |> div [ class "row align-items-center px-3" ]
+                ]
+            , li [ class "list-group-item d-flex flex-row" ]
+                [ heading "Search Depth"
+                , Html.input
+                    [ Attr.type_ "number"
+                    , Attr.min "0"
+                    , Attr.max "99"
+                    , Attr.step "1"
+                    , class "ml-3 twoDigits"
+                    , value <| String.fromInt model.session.searchDepth
+                    , onInput <|
+                        String.toInt
+                            >> Maybe.withDefault model.session.searchDepth
+                            >> SetSearchDepth
+                    ]
+                    []
+                ]
+            , li [ class "list-group-item d-flex flex-row" ]
+                [ heading "Search Max Expr Size"
+                , Html.input
+                    [ Attr.type_ "number"
+                    , Attr.min "1"
+                    , Attr.max "99"
+                    , Attr.step "1"
+                    , class "ml-3 twoDigits"
+                    , value <| String.fromInt model.session.searchMaxExprLength
+                    , onInput <|
+                        String.toInt
+                            >> Maybe.withDefault model.session.searchMaxExprLength
+                            >> SetSearchMaxExprLength
+                    ]
+                    []
                 ]
             ]
         ]
