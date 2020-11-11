@@ -84,6 +84,8 @@ type alias SessionData =
     , searchGoalInput : String
     , settingsOpen : Bool
     , displayStyle : DisplayStyle
+    , searchDepth : Int
+    , searchMaxExprLength : Int
     }
 
 
@@ -135,6 +137,8 @@ init =
         , searchGoalInput = ""
         , settingsOpen = False
         , displayStyle = SymbolString
+        , searchDepth = 10
+        , searchMaxExprLength = 20
         }
     , app =
         Editing
@@ -440,6 +444,8 @@ update msg model =
                     |> List.head
                     |> Maybe.andThen
                         (searchForMatch
+                            model.session.searchDepth
+                            model.session.searchMaxExprLength
                             (buildSearchRules haltedData.rules)
                             goal
                         )

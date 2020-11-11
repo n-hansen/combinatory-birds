@@ -25,6 +25,8 @@ type alias SearchContext =
     , nodesProcessed : Int
     , exprProcessed : Int
     , depth : Int
+    , maxDepth : Int
+    , maxExprLength : Int
     }
 
 
@@ -135,7 +137,11 @@ stepSearch test ctx =
                         printed =
                             pprintExpr rewritten
                     in
-                    if Set.member printed acc.seen then
+                    if
+                        String.length printed
+                            > ctx.maxExprLength
+                            || Set.member printed acc.seen
+                    then
                         acc
 
                     else
@@ -186,32 +192,36 @@ stepSearchAdvanceCursor ctx =
                         Failed
 
                     ( expr, path ) :: rest ->
-                        Searching
-                            { ctx
-                                | loc = exprZipper expr
-                                , path = path
-                                , nextQueue = []
-                                , queue = rest
-                                , nodesProcessed = ctx.nodesProcessed + 1
-                                , exprProcessed = ctx.exprProcessed + 1
-                                , depth = ctx.depth + 1
-                                , rules =
-                                    List.map
-                                        (\r ->
-                                            { r
-                                                | rule =
-                                                    mangleUnboundVars "'"
-                                                        r.rule
-                                            }
-                                        )
-                                        ctx.rules
-                            }
+                        if ctx.maxDepth <= ctx.depth then
+                            Failed
+
+                        else
+                            Searching
+                                { ctx
+                                    | loc = exprZipper expr
+                                    , path = path
+                                    , nextQueue = []
+                                    , queue = rest
+                                    , nodesProcessed = ctx.nodesProcessed + 1
+                                    , exprProcessed = ctx.exprProcessed + 1
+                                    , depth = ctx.depth + 1
+                                    , rules =
+                                        List.map
+                                            (\r ->
+                                                { r
+                                                    | rule =
+                                                        mangleUnboundVars "'"
+                                                            r.rule
+                                                }
+                                            )
+                                            ctx.rules
+                                }
             )
             Searching
 
 
-searchForMatch : Ruleset -> PlainExpr -> RewrittenExpr -> Maybe (List RewrittenExpr)
-searchForMatch rules pattern startingPoint =
+searchForMatch : Int -> Int -> Ruleset -> PlainExpr -> RewrittenExpr -> Maybe (List RewrittenExpr)
+searchForMatch maxDepth maxExprLength rules pattern startingPoint =
     matchExpr pattern startingPoint
         |> Maybe.map
             (\_ ->
@@ -230,6 +240,8 @@ searchForMatch rules pattern startingPoint =
                     , nodesProcessed = 0
                     , exprProcessed = 0
                     , depth = 0
+                    , maxDepth = maxDepth
+                    , maxExprLength = maxExprLength
                     }
             )
 
