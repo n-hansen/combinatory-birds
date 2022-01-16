@@ -16,7 +16,7 @@ MAKEFLAGS += --no-builtin-rules
 all: test build
 
 test:
->elm-test 'tests/**/*Test.elm'
+>npx elm-test 'tests/**/*Test.elm'
 
 build/elm.js: $(shell find src -iname '*.elm' -type f)
 >elm make src/Main.elm --optimize --output=build/elm.js
